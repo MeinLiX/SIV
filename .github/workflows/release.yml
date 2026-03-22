@@ -97,7 +97,7 @@ jobs:
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
-            -p:PublishTrimmed=true `
+            -p:PublishTrimmed=false `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:Version=${{ steps.version.outputs.version }} `
             -p:DebugType=none `
@@ -111,7 +111,7 @@ jobs:
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
-            -p:PublishTrimmed=true `
+            -p:PublishTrimmed=false `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:Version=${{ steps.version.outputs.version }} `
             -p:DebugType=none `
@@ -134,6 +134,49 @@ jobs:
             # Place launcher (SIV.exe) at root
             cp publish/launcher/SIV.exe "${STAGE}/"
           done
+
+      - name: Generate release manifests
+        shell: pwsh
+        run: |
+          function New-ReleaseManifest {
+            param(
+              [string]$RootPath,
+              [string]$Version,
+              [string]$DeploymentType
+            )
+
+            $manifestPath = Join-Path $RootPath "siv-release-manifest.json"
+            $files = Get-ChildItem -Path $RootPath -Recurse -File |
+              Where-Object { $_.FullName -ne $manifestPath } |
+              Sort-Object FullName |
+              ForEach-Object {
+                $relativePath = [System.IO.Path]::GetRelativePath($RootPath, $_.FullName).Replace('\', '/')
+                $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+
+                [pscustomobject]@{
+                  path = $relativePath
+                  size = $_.Length
+                  sha256 = $hash
+                }
+              }
+
+            $manifest = [pscustomobject]@{
+              format = 1
+              version = $Version
+              runtimeIdentifier = "win-x64"
+              deploymentType = $DeploymentType
+              generatedAtUtc = [DateTime]::UtcNow.ToString("O")
+              files = $files
+            }
+
+            $manifest |
+              ConvertTo-Json -Depth 6 |
+              Set-Content -Path $manifestPath -Encoding utf8NoBOM
+          }
+
+          $version = "${{ steps.version.outputs.version }}"
+          New-ReleaseManifest -RootPath "publish/release-self-contained" -Version $version -DeploymentType "self-contained"
+          New-ReleaseManifest -RootPath "publish/release-framework-dependent" -Version $version -DeploymentType "framework-dependent"
 
       - name: Create ZIP archives
         shell: bash

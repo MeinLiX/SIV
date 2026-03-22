@@ -1,12 +1,20 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace SIV.Updater;
 
 internal static class Program
 {
     private static StreamWriter? _logWriter;
+
+    private const int FileSystemRetryMaxAttempts = 15;
+    private static readonly TimeSpan FileSystemRetryDelay = TimeSpan.FromSeconds(2);
+    private const int DownloadRetryMaxAttempts = 3;
+    private static readonly TimeSpan DownloadRetryDelay = TimeSpan.FromSeconds(3);
+    private const string ManifestFileName = "siv-release-manifest.json";
+    private const long DiskSpaceSafetyMarginBytes = 128L * 1024 * 1024;
 
     static async Task<int> Main(string[] args)
     {
@@ -17,8 +25,13 @@ internal static class Program
         var logFile = Path.Combine(logDir, $"updater-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log");
         _logWriter = new StreamWriter(logFile, append: true) { AutoFlush = true };
 
+        string? tempZip = null;
+        string? stageDir = null;
+
         try
         {
+            Directory.SetCurrentDirectory(Path.GetTempPath());
+
             var appDir = GetArg(args, "--app-dir");
             var downloadUrl = GetArg(args, "--download-url");
             var expectedHash = GetArg(args, "--expected-hash");
@@ -35,9 +48,7 @@ internal static class Program
             if (!relocated)
             {
                 Log("Relocating updater to temp directory...");
-                var tempDir = Path.Combine(Path.GetTempPath(), "SIV-Updater");
-                if (Directory.Exists(tempDir))
-                    Directory.Delete(tempDir, true);
+                var tempDir = Path.Combine(Path.GetTempPath(), $"SIV-Updater-{Guid.NewGuid():N}");
                 Directory.CreateDirectory(tempDir);
 
                 var currentExe = Environment.ProcessPath
@@ -45,18 +56,28 @@ internal static class Program
                 var tempExe = Path.Combine(tempDir, Path.GetFileName(currentExe));
                 File.Copy(currentExe, tempExe, overwrite: true);
 
-                var escapedArgs = args
-                    .Append("--relocated")
-                    .Select(a => a.Contains(' ') ? $"\"{a}\"" : a);
-
-                Process.Start(new ProcessStartInfo
+                var relocateStartInfo = new ProcessStartInfo
                 {
                     FileName = tempExe,
-                    Arguments = string.Join(' ', escapedArgs),
+                    WorkingDirectory = tempDir,
                     UseShellExecute = false
-                });
+                };
+
+                foreach (var arg in args)
+                    relocateStartInfo.ArgumentList.Add(arg);
+
+                relocateStartInfo.ArgumentList.Add("--relocated");
+
+                Process.Start(relocateStartInfo);
                 return 0;
             }
+
+            appDir = Path.GetFullPath(appDir);
+            var appParentDir = Directory.GetParent(appDir)?.FullName
+                ?? throw new InvalidOperationException($"Cannot determine parent directory for '{appDir}'.");
+
+            EnsureDirectoryWriteAccess(appParentDir);
+            LogProtectedInstallLocation(appDir);
 
             if (!string.IsNullOrEmpty(appPid) && int.TryParse(appPid, out var pid))
             {
@@ -66,91 +87,79 @@ internal static class Program
                     using var proc = Process.GetProcessById(pid);
                     if (!proc.WaitForExit(TimeSpan.FromSeconds(30)))
                     {
-                        Log("WARNING: Main app did not exit within 30 seconds, proceeding anyway.");
+                        Log("WARNING: Main app did not exit within 30 seconds. Attempting to kill...");
+                        try { proc.Kill(entireProcessTree: true); proc.WaitForExit(5000); }
+                        catch { /* best effort */ }
                     }
                 }
                 catch (ArgumentException)
                 {
                     Log("Main app already exited.");
                 }
+
+                Log("Waiting for file handles to be released...");
+                await Task.Delay(3000);
             }
 
             Log($"Downloading update from: {downloadUrl}");
-            var tempZip = Path.Combine(Path.GetTempPath(), $"SIV-update-{Guid.NewGuid():N}.zip");
+            tempZip = Path.Combine(Path.GetTempPath(), $"SIV-update-{Guid.NewGuid():N}.zip");
 
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("SIV-Updater/1.0");
-
-            using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-
-            var totalBytes = response.Content.Headers.ContentLength;
-            await using (var contentStream = await response.Content.ReadAsStreamAsync())
-            await using (var fileStream = File.Create(tempZip))
-            {
-                var buffer = new byte[81920];
-                long downloaded = 0;
-                int bytesRead;
-                while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    downloaded += bytesRead;
-
-                    if (totalBytes > 0)
-                    {
-                        var pct = (double)downloaded / totalBytes.Value * 100;
-                        Console.Write($"\rDownloading: {pct:F1}% ({downloaded / 1024 / 1024} MB)");
-                    }
-                }
-                Console.WriteLine();
-            }
-            Log("Download complete.");
+            await DownloadFileWithRetriesAsync(downloadUrl, tempZip);
 
             if (!string.IsNullOrEmpty(expectedHash))
             {
-                Log("Verifying SHA256 hash...");
+                Log("Verifying release archive SHA256 hash...");
                 var actualHash = await ComputeSha256Async(tempZip);
                 if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    Log($"HASH MISMATCH! Expected: {expectedHash}, Got: {actualHash}");
-                    File.Delete(tempZip);
-                    return 1;
+                    throw new InvalidOperationException(
+                        $"Release archive hash mismatch. Expected '{expectedHash}', got '{actualHash}'.");
                 }
-                Log("Hash verified successfully.");
+                Log("Release archive hash verified.");
             }
             else
             {
-                Log("WARNING: No expected hash provided, skipping verification.");
+                Log("WARNING: No expected archive hash provided by the update feed. Continuing with manifest validation only.");
             }
 
-            var extractDir = Path.Combine(Path.GetTempPath(), $"SIV-extract-{Guid.NewGuid():N}");
-            Log($"Extracting to: {extractDir}");
-            ZipFile.ExtractToDirectory(tempZip, extractDir, overwriteFiles: true);
-            File.Delete(tempZip);
+            stageDir = CreateSiblingWorkspacePath(appParentDir, Path.GetFileName(appDir), ".stage");
+            Directory.CreateDirectory(stageDir);
+            Log($"Extracting update to staging directory: {stageDir}");
+
+            ValidateZipEntries(tempZip, stageDir);
+            ZipFile.ExtractToDirectory(tempZip, stageDir, overwriteFiles: true);
+            RemoveZoneIdentifiers(stageDir);
+
+            EnsureRequiredReleaseFiles(stageDir);
+
+            var releaseManifest = await LoadReleaseManifestAsync(stageDir);
+            if (releaseManifest is null)
+                Log($"WARNING: '{ManifestFileName}' is missing. Continuing without per-file manifest validation.");
+            else
+                await ValidateReleaseManifestAsync(stageDir, releaseManifest);
+
+            var stageSize = GetDirectorySize(stageDir);
+            Log($"Prepared staged release ({stageSize / 1024 / 1024} MB).");
+            EnsureSufficientDiskSpace(appParentDir, DiskSpaceSafetyMarginBytes);
 
             Log($"Installing update to: {appDir}");
-            CopyDirectory(extractDir, appDir);
+            await PromoteStagedReleaseAsync(appDir, stageDir);
+            stageDir = null;
 
-            try { Directory.Delete(extractDir, true); }
-            catch { /* best effort */ }
-
-            var appExe = Path.Combine(appDir, "runtime", "SIV.App.exe");
-            if (!File.Exists(appExe))
-                appExe = Path.Combine(appDir, "SIV.App.exe");
-
-            if (File.Exists(appExe))
+            var (launcherExe, workingDirectory) = ResolveLaunchTarget(appDir);
+            if (launcherExe is not null)
             {
-                Log($"Launching updated app: {appExe}");
+                Log($"Launching updated app: {launcherExe}");
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = appExe,
-                    WorkingDirectory = appDir,
-                    UseShellExecute = true
+                    FileName = launcherExe,
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = false
                 });
             }
             else
             {
-                Log("WARNING: SIV.App.exe not found after update!");
+                Log("WARNING: No executable found to launch after update!");
             }
 
             Log("Update completed successfully.");
@@ -163,6 +172,8 @@ internal static class Program
         }
         finally
         {
+            TryDeleteFile(tempZip);
+            TryDeleteDirectory(stageDir);
             _logWriter?.Dispose();
         }
     }
@@ -184,27 +195,394 @@ internal static class Program
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    private static void CopyDirectory(string source, string destination)
+    private static async Task DownloadFileWithRetriesAsync(string downloadUrl, string destinationPath)
     {
-        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(source, dir);
-            Directory.CreateDirectory(Path.Combine(destination, relative));
-        }
+        Exception? lastError = null;
 
-        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        for (int attempt = 1; attempt <= DownloadRetryMaxAttempts; attempt++)
         {
-            var relative = Path.GetRelativePath(source, file);
-            var destFile = Path.Combine(destination, relative);
-
             try
             {
-                File.Copy(file, destFile, overwrite: true);
+                if (File.Exists(destinationPath))
+                    File.Delete(destinationPath);
+
+                using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("SIV-Updater/2.0");
+
+                using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                var totalBytes = response.Content.Headers.ContentLength;
+                EnsureSufficientDiskSpace(Path.GetTempPath(), (totalBytes ?? 0) + DiskSpaceSafetyMarginBytes);
+
+                await using var contentStream = await response.Content.ReadAsStreamAsync();
+                await using var fileStream = File.Create(destinationPath);
+
+                var buffer = new byte[81920];
+                long downloaded = 0;
+                int bytesRead;
+                while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    downloaded += bytesRead;
+
+                    if (totalBytes > 0)
+                    {
+                        var pct = (double)downloaded / totalBytes.Value * 100;
+                        Console.Write($"\rDownloading: {pct:F1}% ({downloaded / 1024 / 1024} MB)");
+                    }
+                }
+
+                Console.WriteLine();
+                Log("Download complete.");
+                return;
             }
-            catch (IOException)
+            catch (Exception ex) when (IsTransientDownloadFailure(ex) && attempt < DownloadRetryMaxAttempts)
             {
-                Log($"WARNING: Skipping locked file: {relative}");
+                lastError = ex;
+                Console.WriteLine();
+                Log($"Download attempt {attempt}/{DownloadRetryMaxAttempts} failed: {ex.Message}");
+                await Task.Delay(DownloadRetryDelay);
             }
+        }
+
+        throw new InvalidOperationException("Failed to download the update package.", lastError);
+    }
+
+    private static bool IsTransientDownloadFailure(Exception ex)
+    {
+        return ex is HttpRequestException or IOException or TaskCanceledException;
+    }
+
+    private static void RemoveZoneIdentifiers(string directory)
+    {
+        foreach (var file in Directory.GetFiles(directory, "*", SearchOption.AllDirectories))
+        {
+            var zoneFile = file + ":Zone.Identifier";
+            try
+            {
+                if (File.Exists(zoneFile))
+                    File.Delete(zoneFile);
+            }
+            catch { }
+        }
+    }
+
+    private static async Task<ReleaseManifest?> LoadReleaseManifestAsync(string stageDir)
+    {
+        var manifestPath = Path.Combine(stageDir, ManifestFileName);
+        if (!File.Exists(manifestPath))
+            return null;
+
+        await using var stream = File.OpenRead(manifestPath);
+        return await JsonSerializer.DeserializeAsync(stream, UpdaterJsonContext.Default.ReleaseManifest);
+    }
+
+    private static async Task ValidateReleaseManifestAsync(string stageDir, ReleaseManifest manifest)
+    {
+        if (manifest.Format != 1)
+            throw new InvalidOperationException($"Unsupported release manifest format '{manifest.Format}'.");
+
+        if (!string.Equals(manifest.RuntimeIdentifier, "win-x64", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                $"Unsupported runtime identifier '{manifest.RuntimeIdentifier}' in release manifest.");
+
+        if (manifest.Files.Count == 0)
+            throw new InvalidOperationException("Release manifest does not contain any files.");
+
+        var stageRoot = AppendDirectorySeparator(Path.GetFullPath(stageDir));
+        var expectedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in manifest.Files)
+        {
+            if (string.IsNullOrWhiteSpace(file.Path))
+                throw new InvalidOperationException("Release manifest contains an empty path entry.");
+
+            var normalizedRelativePath = NormalizeRelativePath(file.Path);
+            if (!expectedFiles.Add(normalizedRelativePath))
+                throw new InvalidOperationException($"Duplicate file '{normalizedRelativePath}' in release manifest.");
+
+            var fullPath = Path.GetFullPath(Path.Combine(stageDir, normalizedRelativePath));
+            if (!fullPath.StartsWith(stageRoot, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Release manifest path escapes staging directory: '{file.Path}'.");
+
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException($"Manifest file '{normalizedRelativePath}' is missing from the staged release.", fullPath);
+
+            var info = new FileInfo(fullPath);
+            if (info.Length != file.Size)
+            {
+                throw new InvalidOperationException(
+                    $"Manifest size mismatch for '{normalizedRelativePath}'. Expected {file.Size}, got {info.Length}.");
+            }
+
+            var actualHash = await ComputeSha256Async(fullPath);
+            if (!string.Equals(actualHash, file.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Manifest hash mismatch for '{normalizedRelativePath}'. Expected '{file.Sha256}', got '{actualHash}'.");
+            }
+        }
+
+        var actualFiles = Directory
+            .GetFiles(stageDir, "*", SearchOption.AllDirectories)
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(stageDir, path)))
+            .Where(path => !path.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!actualFiles.SetEquals(expectedFiles))
+        {
+            var extraFiles = actualFiles.Except(expectedFiles, StringComparer.OrdinalIgnoreCase).OrderBy(path => path).ToArray();
+            var missingFiles = expectedFiles.Except(actualFiles, StringComparer.OrdinalIgnoreCase).OrderBy(path => path).ToArray();
+
+            throw new InvalidOperationException(
+                $"Staged release does not match the manifest. Missing: [{string.Join(", ", missingFiles)}]. Extra: [{string.Join(", ", extraFiles)}].");
+        }
+
+        Log($"Validated {manifest.Files.Count} files against the release manifest.");
+    }
+
+    private static void EnsureRequiredReleaseFiles(string stageDir)
+    {
+        var requiredFiles = new[]
+        {
+            "SIV.exe",
+            Path.Combine("runtime", "SIV.App.exe"),
+            Path.Combine("runtime", "updater", "SIV.Updater.exe"),
+        };
+
+        foreach (var relativePath in requiredFiles)
+        {
+            var fullPath = Path.Combine(stageDir, relativePath);
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException($"Required release file is missing: '{relativePath}'.", fullPath);
+        }
+    }
+
+    private static async Task PromoteStagedReleaseAsync(string appDir, string stagedDir)
+    {
+        var appParentDir = Directory.GetParent(appDir)?.FullName
+            ?? throw new InvalidOperationException($"Cannot determine parent directory for '{appDir}'.");
+        var appFolderName = Path.GetFileName(appDir);
+        var backupDir = CreateSiblingWorkspacePath(appParentDir, appFolderName, ".backup");
+        var hadExistingInstall = Directory.Exists(appDir);
+
+        try
+        {
+            if (hadExistingInstall)
+            {
+                Log($"Moving current install to backup: {backupDir}");
+                await RetryFileSystemOperationAsync(
+                    "move current install to backup",
+                    () => Directory.Move(appDir, backupDir));
+            }
+
+            Log("Activating staged release...");
+            await RetryFileSystemOperationAsync(
+                "activate staged release",
+                () => Directory.Move(stagedDir, appDir));
+
+            TryDeleteDirectory(backupDir);
+        }
+        catch
+        {
+            if (!Directory.Exists(appDir) && hadExistingInstall && Directory.Exists(backupDir))
+            {
+                try
+                {
+                    Log("Activation failed. Attempting rollback...");
+                    await RetryFileSystemOperationAsync(
+                        "rollback previous install",
+                        () => Directory.Move(backupDir, appDir));
+                    Log("Rollback completed.");
+                }
+                catch (Exception rollbackEx)
+                {
+                    Log($"ERROR: Rollback failed: {rollbackEx}");
+                }
+            }
+
+            throw;
+        }
+        finally
+        {
+            TryDeleteDirectory(stagedDir);
+        }
+    }
+
+    private static async Task RetryFileSystemOperationAsync(string operationName, Action operation)
+    {
+        Exception? lastError = null;
+
+        for (int attempt = 1; attempt <= FileSystemRetryMaxAttempts; attempt++)
+        {
+            try
+            {
+                operation();
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                lastError = ex;
+                if (attempt == FileSystemRetryMaxAttempts)
+                    break;
+
+                Log($"{operationName} failed on attempt {attempt}/{FileSystemRetryMaxAttempts}: {ex.Message}");
+                await Task.Delay(FileSystemRetryDelay);
+            }
+        }
+
+        throw new InvalidOperationException($"Failed to {operationName}.", lastError);
+    }
+
+    private static void ValidateZipEntries(string zipPath, string destinationRoot)
+    {
+        var rootWithSeparator = AppendDirectorySeparator(Path.GetFullPath(destinationRoot));
+
+        using var archive = ZipFile.OpenRead(zipPath);
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.FullName))
+                continue;
+
+            var normalizedEntryPath = entry.FullName.Replace('\\', '/');
+            var destinationPath = Path.GetFullPath(Path.Combine(destinationRoot, normalizedEntryPath));
+            if (!destinationPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"The update archive contains an invalid entry path: '{entry.FullName}'.");
+            }
+        }
+    }
+
+    private static void EnsureDirectoryWriteAccess(string directory)
+    {
+        Directory.CreateDirectory(directory);
+
+        var probePath = Path.Combine(directory, $".siv-update-probe-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using var stream = new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            stream.WriteByte(0);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException(
+                $"Updater does not have write access to '{directory}'. Install SIV into a user-writable directory or run it with elevated permissions.",
+                ex);
+        }
+        finally
+        {
+            TryDeleteFile(probePath);
+        }
+    }
+
+    private static void EnsureSufficientDiskSpace(string path, long requiredBytes)
+    {
+        if (requiredBytes <= 0)
+            return;
+
+        var root = Path.GetPathRoot(Path.GetFullPath(path))
+            ?? throw new InvalidOperationException($"Cannot determine drive root for '{path}'.");
+        var drive = new DriveInfo(root);
+        if (drive.AvailableFreeSpace < requiredBytes)
+        {
+            throw new InvalidOperationException(
+                $"Not enough free disk space on '{root}'. Required {requiredBytes / 1024 / 1024} MB, available {drive.AvailableFreeSpace / 1024 / 1024} MB.");
+        }
+    }
+
+    private static long GetDirectorySize(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return 0;
+
+        long totalBytes = 0;
+        foreach (var file in Directory.GetFiles(directory, "*", SearchOption.AllDirectories))
+            totalBytes += new FileInfo(file).Length;
+
+        return totalBytes;
+    }
+
+    private static string CreateSiblingWorkspacePath(string parentDirectory, string appFolderName, string suffix)
+    {
+        return Path.Combine(parentDirectory, $"{appFolderName}{suffix}-{Guid.NewGuid():N}");
+    }
+
+    private static (string? ExecutablePath, string WorkingDirectory) ResolveLaunchTarget(string appDir)
+    {
+        var launcherExe = Path.Combine(appDir, "SIV.exe");
+        if (File.Exists(launcherExe))
+            return (launcherExe, appDir);
+
+        var runtimeExe = Path.Combine(appDir, "runtime", "SIV.App.exe");
+        if (File.Exists(runtimeExe))
+            return (runtimeExe, Path.GetDirectoryName(runtimeExe)!);
+
+        var rootAppExe = Path.Combine(appDir, "SIV.App.exe");
+        if (File.Exists(rootAppExe))
+            return (rootAppExe, appDir);
+
+        return (null, appDir);
+    }
+
+    private static string NormalizeRelativePath(string path)
+    {
+        return path.Replace('\\', '/').TrimStart('/');
+    }
+
+    private static string AppendDirectorySeparator(string path)
+    {
+        return path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar)
+            ? path
+            : path + Path.DirectorySeparatorChar;
+    }
+
+    private static void LogProtectedInstallLocation(string appDir)
+    {
+        var protectedRoots = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        }
+        .Where(path => !string.IsNullOrWhiteSpace(path))
+        .Select(path => AppendDirectorySeparator(Path.GetFullPath(path)))
+        .ToArray();
+
+        var normalizedAppDir = AppendDirectorySeparator(Path.GetFullPath(appDir));
+        if (protectedRoots.Any(root => normalizedAppDir.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
+        {
+            Log("WARNING: SIV is installed under Program Files. Updates may fail without elevated permissions.");
+        }
+    }
+
+    private static void TryDeleteFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return;
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // Best effort cleanup.
+        }
+    }
+
+    private static void TryDeleteDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+            return;
+
+        try
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        catch
+        {
+            // Best effort cleanup.
         }
     }
 

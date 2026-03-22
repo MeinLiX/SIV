@@ -10,6 +10,7 @@ namespace SIV.Infrastructure.Update;
 public sealed class GitHubUpdateService : IUpdateService
 {
     private const string DefaultRepoUrl = "https://github.com/MeinLiX/SIV";
+    private const string SupportedRuntimeIdentifier = "win-x64";
 
     private readonly HttpClient _http;
     private readonly ISettingsService _settings;
@@ -38,6 +39,8 @@ public sealed class GitHubUpdateService : IUpdateService
 
             var uri = new Uri(repoUrl);
             var segments = uri.AbsolutePath.Trim('/').Split('/');
+            if (segments.Length >= 2 && segments[1].EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+                segments[1] = segments[1][..^4];
             if (segments.Length < 2)
             {
                 _logger.LogWarning("Invalid repo URL: {Url}", repoUrl);
@@ -81,30 +84,35 @@ public sealed class GitHubUpdateService : IUpdateService
             _logger.LogInformation("Update available: {Remote} > {Local}", tagName, currentVersion);
 
             var isSelfContained = File.Exists(Path.Combine(AppContext.BaseDirectory, "coreclr.dll"));
-            var assetSuffix = isSelfContained ? "self-contained" : "framework-dependent";
+            var preferredDeploymentType = isSelfContained ? "self-contained" : "framework-dependent";
 
-            string? downloadUrl = null;
-            if (root.TryGetProperty("assets", out var assets))
+            if (!root.TryGetProperty("assets", out var assets))
             {
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    var name = asset.GetProperty("name").GetString() ?? "";
-                    if (name.Contains(assetSuffix, StringComparison.OrdinalIgnoreCase) &&
-                        name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                    {
-                        downloadUrl = asset.GetProperty("browser_download_url").GetString();
-                        break;
-                    }
-                }
-            }
-
-            if (downloadUrl is null)
-            {
-                _logger.LogWarning("No matching asset found for deployment type: {Type}", assetSuffix);
+                _logger.LogWarning("Release {Version} does not contain any assets", tagName);
                 return null;
             }
 
-            var expectedHash = GetExpectedHash(assets, assetSuffix);
+            var selectedAsset = SelectReleaseAsset(assets, preferredDeploymentType);
+            if (selectedAsset is null)
+            {
+                _logger.LogWarning(
+                    "No matching asset found for runtime {RuntimeIdentifier} and preferred deployment {DeploymentType}",
+                    SupportedRuntimeIdentifier,
+                    preferredDeploymentType);
+                return null;
+            }
+
+            var downloadUrl = selectedAsset.Value.GetProperty("browser_download_url").GetString();
+            if (string.IsNullOrWhiteSpace(downloadUrl))
+            {
+                _logger.LogWarning("Selected release asset is missing browser_download_url");
+                return null;
+            }
+
+            var assetName = selectedAsset.Value.GetProperty("name").GetString() ?? "<unknown>";
+            _logger.LogInformation("Selected update asset: {AssetName}", assetName);
+
+            var expectedHash = GetExpectedHash(selectedAsset.Value);
 
             return new UpdateInfo(tagName, currentVersion, downloadUrl, expectedHash, releaseNotes);
         }
@@ -132,32 +140,82 @@ public sealed class GitHubUpdateService : IUpdateService
 
         _logger.LogInformation("Launching updater for version {Version}", update.NewVersion);
 
-        Process.Start(new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = updaterPath,
-            Arguments = $"--app-pid {pid} --app-dir \"{appDir}\" --download-url \"{update.DownloadUrl}\" --expected-hash \"{update.ExpectedHash}\"",
             UseShellExecute = false
-        });
-    }
+        };
 
-    private string GetExpectedHash(JsonElement assets, string assetSuffix)
-    {
-        foreach (var asset in assets.EnumerateArray())
+        startInfo.ArgumentList.Add("--app-pid");
+        startInfo.ArgumentList.Add(pid.ToString());
+        startInfo.ArgumentList.Add("--app-dir");
+        startInfo.ArgumentList.Add(appDir);
+        startInfo.ArgumentList.Add("--download-url");
+        startInfo.ArgumentList.Add(update.DownloadUrl);
+
+        if (!string.IsNullOrWhiteSpace(update.ExpectedHash))
         {
-            var name = asset.GetProperty("name").GetString() ?? "";
-            if (name.Contains(assetSuffix, StringComparison.OrdinalIgnoreCase) &&
-                name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
-                asset.TryGetProperty("digest", out var digest))
-            {
-                var hash = digest.GetString() ?? "";
-                const string prefix = "sha256:";
-                return hash.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-                    ? hash[prefix.Length..]
-                    : hash;
-            }
+            startInfo.ArgumentList.Add("--expected-hash");
+            startInfo.ArgumentList.Add(update.ExpectedHash);
         }
 
-        _logger.LogWarning("No digest found in release assets for {Type}", assetSuffix);
+        Process.Start(startInfo);
+    }
+
+    private JsonElement? SelectReleaseAsset(JsonElement assets, string preferredDeploymentType)
+    {
+        var candidates = assets
+            .EnumerateArray()
+            .Where(asset =>
+            {
+                var name = asset.GetProperty("name").GetString() ?? string.Empty;
+                return name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                    name.Contains(SupportedRuntimeIdentifier, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToList();
+
+        if (candidates.Count == 0)
+            return null;
+
+        var preferred = candidates.FirstOrDefault(asset =>
+        {
+            var name = asset.GetProperty("name").GetString() ?? "";
+            return name.Contains(preferredDeploymentType, StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (preferred.ValueKind != JsonValueKind.Undefined)
+            return preferred;
+
+        var selfContainedFallback = candidates.FirstOrDefault(asset =>
+        {
+            var name = asset.GetProperty("name").GetString() ?? "";
+            return name.Contains("self-contained", StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (selfContainedFallback.ValueKind != JsonValueKind.Undefined)
+        {
+            _logger.LogInformation(
+                "Preferred deployment type {DeploymentType} is not available. Falling back to self-contained x64 asset.",
+                preferredDeploymentType);
+            return selfContainedFallback;
+        }
+
+        return candidates[0];
+    }
+
+    private string GetExpectedHash(JsonElement asset)
+    {
+        if (asset.TryGetProperty("digest", out var digest))
+        {
+            var hash = digest.GetString() ?? "";
+            const string prefix = "sha256:";
+            return hash.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                ? hash[prefix.Length..]
+                : hash;
+        }
+
+        var assetName = asset.GetProperty("name").GetString() ?? "<unknown>";
+        _logger.LogWarning("No digest found in release asset {AssetName}", assetName);
         return string.Empty;
     }
 

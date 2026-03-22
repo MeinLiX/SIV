@@ -77,14 +77,8 @@ jobs:
           msbuild src/SIV.App/SIV.App.csproj `
             /restore `
             /t:Publish `
-            /p:Configuration=Release `
-            /p:RuntimeIdentifier=win-x64 `
-            /p:Platform=x64 `
-            /p:SelfContained=true `
-            /p:WindowsAppSDKSelfContained=true `
+            /p:PublishProfile=Release-x64-SelfContained `
             /p:Version=${{ steps.version.outputs.version }} `
-            /p:DebugType=none `
-            /p:DebugSymbols=false `
             /p:PublishDir=${{ github.workspace }}\publish\self-contained\
 
       - name: Publish Framework-Dependent (win-x64)
@@ -92,14 +86,8 @@ jobs:
           msbuild src/SIV.App/SIV.App.csproj `
             /restore `
             /t:Publish `
-            /p:Configuration=Release `
-            /p:RuntimeIdentifier=win-x64 `
-            /p:Platform=x64 `
-            /p:SelfContained=false `
-            /p:WindowsAppSDKSelfContained=false `
+            /p:PublishProfile=Release-x64-FrameworkDependent `
             /p:Version=${{ steps.version.outputs.version }} `
-            /p:DebugType=none `
-            /p:DebugSymbols=false `
             /p:PublishDir=${{ github.workspace }}\publish\framework-dependent\
 
       - name: Publish Updater (win-x64)
@@ -116,14 +104,36 @@ jobs:
             -p:DebugSymbols=false `
             -o publish/updater
 
-      - name: Bundle Updater into releases
+      - name: Publish Launcher (win-x64)
+        run: |
+          dotnet publish src/SIV.Launcher/SIV.Launcher.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:PublishTrimmed=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:DebugType=none `
+            -p:DebugSymbols=false `
+            -o publish/launcher
+
+      - name: Assemble release folders
         shell: bash
         run: |
-          mkdir -p publish/self-contained/updater
-          cp publish/updater/SIV.Updater.exe publish/self-contained/updater/
+          for VARIANT in self-contained framework-dependent; do
+            STAGE="publish/release-${VARIANT}"
+            mkdir -p "${STAGE}/runtime/updater"
 
-          mkdir -p publish/framework-dependent/updater
-          cp publish/updater/SIV.Updater.exe publish/framework-dependent/updater/
+            # Move all app files into runtime/
+            cp -r publish/${VARIANT}/* "${STAGE}/runtime/"
+
+            # Place updater inside runtime/updater/
+            cp publish/updater/SIV.Updater.exe "${STAGE}/runtime/updater/"
+
+            # Place launcher (SIV.exe) at root
+            cp publish/launcher/SIV.exe "${STAGE}/"
+          done
 
       - name: Create ZIP archives
         shell: bash
@@ -131,20 +141,13 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           mkdir -p artifacts
 
-          cd publish/self-contained
+          cd publish/release-self-contained
           7z a -tzip "../../artifacts/SIV-v${VERSION}-win-x64-self-contained.zip" .
           cd ../..
 
-          cd publish/framework-dependent
+          cd publish/release-framework-dependent
           7z a -tzip "../../artifacts/SIV-v${VERSION}-win-x64-framework-dependent.zip" .
           cd ../..
-
-      - name: Generate SHA256 checksums
-        shell: bash
-        run: |
-          cd artifacts
-          sha256sum *.zip > SHA256SUMS.txt
-          cat SHA256SUMS.txt
 
       - name: Create GitHub Release
         env:
@@ -163,8 +166,7 @@ jobs:
             --notes-file release_notes.md \
             --latest \
             artifacts/SIV-v${VERSION}-win-x64-self-contained.zip \
-            artifacts/SIV-v${VERSION}-win-x64-framework-dependent.zip \
-            artifacts/SHA256SUMS.txt
+            artifacts/SIV-v${VERSION}-win-x64-framework-dependent.zip
 
       - name: Update latest tag
         shell: bash

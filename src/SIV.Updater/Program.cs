@@ -134,7 +134,10 @@ internal static class Program
             try { Directory.Delete(extractDir, true); }
             catch { /* best effort */ }
 
-            var appExe = Path.Combine(appDir, "SIV.App.exe");
+            var appExe = Path.Combine(appDir, "runtime", "SIV.App.exe");
+            if (!File.Exists(appExe))
+                appExe = Path.Combine(appDir, "SIV.App.exe");
+
             if (File.Exists(appExe))
             {
                 Log($"Launching updated app: {appExe}");

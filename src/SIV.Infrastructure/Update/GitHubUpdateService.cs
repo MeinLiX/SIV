@@ -104,7 +104,7 @@ public sealed class GitHubUpdateService : IUpdateService
                 return null;
             }
 
-            var expectedHash = await GetExpectedHashAsync(assets, assetSuffix, ct);
+            var expectedHash = GetExpectedHash(assets, assetSuffix);
 
             return new UpdateInfo(tagName, currentVersion, downloadUrl, expectedHash, releaseNotes);
         }
@@ -124,7 +124,10 @@ public sealed class GitHubUpdateService : IUpdateService
             return;
         }
 
-        var appDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var appDir = Path.GetFileName(baseDir).Equals("runtime", StringComparison.OrdinalIgnoreCase)
+            ? Path.GetDirectoryName(baseDir)!
+            : baseDir;
         var pid = Environment.ProcessId;
 
         _logger.LogInformation("Launching updater for version {Version}", update.NewVersion);
@@ -137,30 +140,24 @@ public sealed class GitHubUpdateService : IUpdateService
         });
     }
 
-    private async Task<string> GetExpectedHashAsync(JsonElement assets, string assetSuffix, CancellationToken ct)
+    private string GetExpectedHash(JsonElement assets, string assetSuffix)
     {
         foreach (var asset in assets.EnumerateArray())
         {
             var name = asset.GetProperty("name").GetString() ?? "";
-            if (!string.Equals(name, "SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var sumsUrl = asset.GetProperty("browser_download_url").GetString();
-            if (sumsUrl is null) break;
-
-            var sums = await _http.GetStringAsync(sumsUrl, ct);
-            foreach (var line in sums.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            if (name.Contains(assetSuffix, StringComparison.OrdinalIgnoreCase) &&
+                name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                asset.TryGetProperty("digest", out var digest))
             {
-                if (line.Contains(assetSuffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 1) return parts[0];
-                }
+                var hash = digest.GetString() ?? "";
+                const string prefix = "sha256:";
+                return hash.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                    ? hash[prefix.Length..]
+                    : hash;
             }
-            break;
         }
 
-        _logger.LogWarning("SHA256SUMS.txt not found or no matching hash for {Type}", assetSuffix);
+        _logger.LogWarning("No digest found in release assets for {Type}", assetSuffix);
         return string.Empty;
     }
 

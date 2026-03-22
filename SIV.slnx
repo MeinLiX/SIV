@@ -22,4 +22,7 @@
   <Project Path="src/SIV.Updater/SIV.Updater.csproj">
     <Platform Project="x64" />
   </Project>
+  <Project Path="src/SIV.Launcher/SIV.Launcher.csproj">
+    <Platform Project="x64" />
+  </Project>
 </Solution>

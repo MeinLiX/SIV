@@ -36,6 +36,11 @@
     <ProjectReference Include="..\SIV.UI\SIV.UI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\dump\cs2\items_game.txt" Link="dump\cs2\items_game.txt"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Target Name="CopyAppPriToPublish" AfterTargets="Publish"
           Condition="Exists('$(OutDir)$(AssemblyName).pri')">
     <Copy SourceFiles="$(OutDir)$(AssemblyName).pri"

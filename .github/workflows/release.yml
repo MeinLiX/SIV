@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_notes:
-        description: "Release notes for this version"
+        description: "Release notes (use \\n for new lines)"
         required: true
         type: string
       version_override:
@@ -60,7 +60,7 @@ jobs:
         id: dotnet-version
         shell: bash
         run: |
-          SDK_VERSION=$(jq -r '.sdk.version' SIV/global.json)
+          SDK_VERSION=$(jq -r '.sdk.version' global.json)
           echo "sdk-version=$SDK_VERSION" >> "$GITHUB_OUTPUT"
           echo "SDK version: $SDK_VERSION"
 
@@ -71,7 +71,7 @@ jobs:
 
       - name: Publish Self-Contained (win-x64)
         run: |
-          dotnet publish SIV/src/SIV.App/SIV.App.csproj `
+          dotnet publish src/SIV.App/SIV.App.csproj `
             -c Release `
             -r win-x64 `
             -p:Platform=x64 `
@@ -84,7 +84,7 @@ jobs:
 
       - name: Publish Framework-Dependent (win-x64)
         run: |
-          dotnet publish SIV/src/SIV.App/SIV.App.csproj `
+          dotnet publish src/SIV.App/SIV.App.csproj `
             -c Release `
             -r win-x64 `
             -p:Platform=x64 `
@@ -97,7 +97,7 @@ jobs:
 
       - name: Publish Updater (win-x64)
         run: |
-          dotnet publish SIV/src/SIV.Updater/SIV.Updater.csproj `
+          dotnet publish src/SIV.Updater/SIV.Updater.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
@@ -148,7 +148,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v${VERSION}"
 
-          printf '%s' "$RELEASE_NOTES" > release_notes.md
+          printf '%b' "$RELEASE_NOTES" > release_notes.md
 
           gh release create "$TAG" \
             --repo "${{ github.repository }}" \

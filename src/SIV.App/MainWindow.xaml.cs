@@ -34,7 +34,7 @@ public sealed partial class MainWindow : Window
 
         _viewModel.RequestAppExit += () =>
         {
-            DispatcherQueue.TryEnqueue(() => Close());
+            DispatcherQueue.TryEnqueue(App.Shutdown);
         };
 
         _viewModel.PropertyChanged += (_, e) =>

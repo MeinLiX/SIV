@@ -15,6 +15,7 @@ internal static class Program
     private static readonly TimeSpan DownloadRetryDelay = TimeSpan.FromSeconds(3);
     private const string ManifestFileName = "siv-release-manifest.json";
     private const long DiskSpaceSafetyMarginBytes = 128L * 1024 * 1024;
+    private const string PreservedUpdaterRelativePath = "runtime/updater";
 
     static async Task<int> Main(string[] args)
     {
@@ -98,6 +99,8 @@ internal static class Program
                 await Task.Delay(3000);
             }
 
+            EnsureInstalledAppProcessesStopped(appDir);
+
             Log($"Downloading update from: {downloadUrl}");
             tempZip = Path.Combine(Path.GetTempPath(), $"SIV-update-{Guid.NewGuid():N}.zip");
 
@@ -142,7 +145,7 @@ internal static class Program
             EnsureSufficientDiskSpace(appParentDir, DiskSpaceSafetyMarginBytes);
 
             Log($"Installing update to: {appDir}");
-            await PromoteStagedReleaseAsync(appDir, stageDir);
+            await InstallStagedReleaseAsync(appDir, stageDir, releaseManifest);
             stageDir = null;
 
             var (launcherExe, workingDirectory) = ResolveLaunchTarget(appDir);
@@ -390,55 +393,82 @@ internal static class Program
         }
     }
 
-    private static async Task PromoteStagedReleaseAsync(string appDir, string stagedDir)
+    private static async Task InstallStagedReleaseAsync(string appDir, string stagedDir, ReleaseManifest? manifest)
     {
-        var appParentDir = Directory.GetParent(appDir)?.FullName
-            ?? throw new InvalidOperationException($"Cannot determine parent directory for '{appDir}'.");
-        var appFolderName = Path.GetFileName(appDir);
-        var backupDir = CreateSiblingWorkspacePath(appParentDir, appFolderName, ".backup");
-        var hadExistingInstall = Directory.Exists(appDir);
+        Directory.CreateDirectory(appDir);
 
-        try
+        var stagedFiles = Directory
+            .GetFiles(stagedDir, "*", SearchOption.AllDirectories)
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(stagedDir, path)))
+            .Where(path => !IsPreservedRelativePath(path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var stagedDirectories = Directory
+            .GetDirectories(stagedDir, "*", SearchOption.AllDirectories)
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(stagedDir, path)))
+            .Where(path => !IsPreservedRelativePath(path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var relativeDirectory in stagedDirectories.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
-            if (hadExistingInstall)
-            {
-                Log($"Moving current install to backup: {backupDir}");
-                await RetryFileSystemOperationAsync(
-                    "move current install to backup",
-                    () => Directory.Move(appDir, backupDir));
-            }
+            var destinationDirectory = Path.Combine(appDir, relativeDirectory);
+            Directory.CreateDirectory(destinationDirectory);
+        }
 
-            Log("Activating staged release...");
+        foreach (var relativeFile in stagedFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            var sourceFile = Path.Combine(stagedDir, relativeFile);
+            var destinationFile = Path.Combine(appDir, relativeFile);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+
             await RetryFileSystemOperationAsync(
-                "activate staged release",
-                () => Directory.Move(stagedDir, appDir));
-
-            TryDeleteDirectory(backupDir);
+                $"copy '{relativeFile}'",
+                () => File.Copy(sourceFile, destinationFile, overwrite: true));
         }
-        catch
+
+        var installedFiles = Directory
+            .GetFiles(appDir, "*", SearchOption.AllDirectories)
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(appDir, path)))
+            .Where(path => !IsPreservedRelativePath(path))
+            .ToArray();
+
+        var staleFiles = installedFiles
+            .Where(path => !stagedFiles.Contains(path))
+            .OrderByDescending(path => path.Length)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (var staleFile in staleFiles)
         {
-            if (!Directory.Exists(appDir) && hadExistingInstall && Directory.Exists(backupDir))
+            var fullPath = Path.Combine(appDir, staleFile);
+            await RetryFileSystemOperationAsync(
+                $"delete stale file '{staleFile}'",
+                () => File.Delete(fullPath));
+        }
+
+        var installedDirectories = Directory
+            .GetDirectories(appDir, "*", SearchOption.AllDirectories)
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(appDir, path)))
+            .Where(path => !IsPreservedRelativePath(path))
+            .OrderByDescending(path => path.Length)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (var relativeDirectory in installedDirectories)
+        {
+            var fullPath = Path.Combine(appDir, relativeDirectory);
+            if (Directory.Exists(fullPath) &&
+                !Directory.EnumerateFileSystemEntries(fullPath).Any() &&
+                !stagedDirectories.Contains(relativeDirectory))
             {
-                try
-                {
-                    Log("Activation failed. Attempting rollback...");
-                    await RetryFileSystemOperationAsync(
-                        "rollback previous install",
-                        () => Directory.Move(backupDir, appDir));
-                    Log("Rollback completed.");
-                }
-                catch (Exception rollbackEx)
-                {
-                    Log($"ERROR: Rollback failed: {rollbackEx}");
-                }
+                await RetryFileSystemOperationAsync(
+                    $"delete stale directory '{relativeDirectory}'",
+                    () => Directory.Delete(fullPath, recursive: false));
             }
+        }
 
-            throw;
-        }
-        finally
-        {
-            TryDeleteDirectory(stagedDir);
-        }
+        if (manifest is not null)
+            await ValidateInstalledReleaseAsync(appDir, manifest);
     }
 
     private static async Task RetryFileSystemOperationAsync(string operationName, Action operation)
@@ -562,6 +592,43 @@ internal static class Program
         return path.Replace('\\', '/').TrimStart('/');
     }
 
+    private static bool IsPreservedRelativePath(string relativePath)
+    {
+        var normalized = NormalizeRelativePath(relativePath);
+        return normalized.Equals(PreservedUpdaterRelativePath, StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith(PreservedUpdaterRelativePath + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task ValidateInstalledReleaseAsync(string appDir, ReleaseManifest manifest)
+    {
+        foreach (var file in manifest.Files)
+        {
+            var relativePath = NormalizeRelativePath(file.Path);
+            if (IsPreservedRelativePath(relativePath))
+                continue;
+
+            var fullPath = Path.Combine(appDir, relativePath);
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException($"Installed file '{relativePath}' is missing after update.", fullPath);
+
+            var info = new FileInfo(fullPath);
+            if (info.Length != file.Size)
+            {
+                throw new InvalidOperationException(
+                    $"Installed file size mismatch for '{relativePath}'. Expected {file.Size}, got {info.Length}.");
+            }
+
+            var actualHash = await ComputeSha256Async(fullPath);
+            if (!string.Equals(actualHash, file.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Installed file hash mismatch for '{relativePath}'. Expected '{file.Sha256}', got '{actualHash}'.");
+            }
+        }
+
+        Log("Validated installed release files after in-place synchronization.");
+    }
+
     private static string AppendDirectorySeparator(string path)
     {
         return path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar)
@@ -603,6 +670,75 @@ internal static class Program
         {
             Log($"{description} already exited.");
         }
+    }
+
+    private static void EnsureInstalledAppProcessesStopped(string appDir)
+    {
+        var trackedExecutables = new[]
+        {
+            Path.GetFullPath(Path.Combine(appDir, "SIV.exe")),
+            Path.GetFullPath(Path.Combine(appDir, "runtime", "SIV.App.exe")),
+            Path.GetFullPath(Path.Combine(appDir, "SIV.App.exe")),
+        };
+
+        var seenPids = new HashSet<int>();
+
+        foreach (var executablePath in trackedExecutables)
+        {
+            var processName = Path.GetFileNameWithoutExtension(executablePath);
+            if (string.IsNullOrWhiteSpace(processName))
+                continue;
+
+            foreach (var process in Process.GetProcessesByName(processName))
+            {
+                using (process)
+                {
+                    if (!seenPids.Add(process.Id))
+                        continue;
+
+                    if (process.Id == Environment.ProcessId)
+                        continue;
+
+                    string? processPath = null;
+                    try
+                    {
+                        processPath = process.MainModule?.FileName;
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(processPath))
+                        continue;
+
+                    if (!string.Equals(
+                            Path.GetFullPath(processPath),
+                            executablePath,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    Log($"Detected running installed process '{Path.GetFileName(processPath)}' (PID {process.Id}). Attempting to stop it...");
+
+                    try
+                    {
+                        if (!process.WaitForExit(1000))
+                        {
+                            process.Kill(entireProcessTree: true);
+                            process.WaitForExit(5000);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"WARNING: Failed to stop process PID {process.Id}: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        Log("Verified that no installed SIV app processes are still running.");
     }
 
     private static void TryDeleteFile(string? path)

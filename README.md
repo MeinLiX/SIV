@@ -28,3 +28,10 @@ Two build variants are available:
 | **Framework-Dependent** | ~smaller | Requires [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
 
 If unsure — pick **Self-Contained**.
+
+## Support
+
+If you'd like to send a thank-you:
+
+- **[Send a Trade Offer (web)](https://steamcommunity.com/tradeoffer/new/?partner=220978433&token=hU4Tsyg6)**
+- **[Open in Steam app](steam://openurl/https://steamcommunity.com/tradeoffer/new/?partner=220978433&token=hU4Tsyg6)**

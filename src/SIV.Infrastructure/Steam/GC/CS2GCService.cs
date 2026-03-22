@@ -68,10 +68,14 @@ public sealed class CS2GCService : IGCService
         _logger.LogInformation("Connecting to CS2 Game Coordinator");
         _cachedItems = null;
         _allRawItems = null;
+        _gcSubscription?.Dispose();
         _gcSubscription = _connection.CallbackManager.Subscribe<SteamGameCoordinator.MessageCallback>(OnGCMessage);
 
         if (_connection.IsPlayingBlocked)
         {
+            _gcSubscription.Dispose();
+            _gcSubscription = null;
+
             var message = _connection.BlockingAppId is uint appId
                 ? $"Steam reports that game playing is currently blocked by another client session (AppId={appId})."
                 : "Steam reports that game playing is currently blocked by another client session.";

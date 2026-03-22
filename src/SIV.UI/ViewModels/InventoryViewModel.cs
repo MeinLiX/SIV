@@ -123,6 +123,10 @@ public partial class InventoryViewModel : ViewModelBase
         {
             var gameDef = _gcFactory.SupportedGames.First(g => g.AppId == _appId);
             var gcService = _gcFactory.Create(gameDef);
+
+            if (!gcService.IsConnected)
+                await gcService.DisconnectAsync();
+
             await gcService.ConnectAsync(ct);
 
             StatusText = "Requesting inventory...";

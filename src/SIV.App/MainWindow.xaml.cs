@@ -16,7 +16,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        NativeWindowMethods.ConfigurePresenter(this);
+        NativeWindowMethods.ConfigurePresenter(this, hasTitleBar: true);
         NativeWindowMethods.SetWindowSize(this, 1100, 750);
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
     }

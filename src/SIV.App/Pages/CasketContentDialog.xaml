@@ -112,7 +112,7 @@
                                        HorizontalAlignment="Center" />
                         </Border>
                         <Button Grid.Column="5" Content="&#xE719;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                ToolTipService.ToolTip="Steam Market" Padding="4,2"
+                                ToolTipService.ToolTip="{Binding ElementName=RootDialog, Path=ViewModel.MarketLinkTooltip}" Padding="4,2"
                                 Command="{Binding ElementName=RootDialog, Path=ViewModel.OpenMarketListingCommand}"
                                 CommandParameter="{x:Bind MarketHashName}"
                                 VerticalAlignment="Center"
@@ -195,7 +195,7 @@
                                     CommandParameter="{Binding}"
                                     Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
                             <Button Content="&#xE719;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                    ToolTipService.ToolTip="Steam Market" Padding="4,2"
+                                    ToolTipService.ToolTip="{Binding ElementName=RootDialog, Path=ViewModel.MarketLinkTooltip}" Padding="4,2"
                                     Command="{Binding ElementName=RootDialog, Path=ViewModel.OpenMarketListingCommand}"
                                     CommandParameter="{x:Bind MarketHashName}"
                                     Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />

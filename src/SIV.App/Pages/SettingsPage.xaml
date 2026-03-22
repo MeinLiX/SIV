@@ -9,10 +9,21 @@
         <converters:NullToVisibilityConverter x:Key="NullToVis" />
     </Page.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="600" HorizontalAlignment="Center" Spacing="4" Padding="24">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Margin="0,0,0,24" />
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Padding="24,16,24,8">
+            <Button Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
+                    ToolTipService.ToolTip="Back" Padding="8,4"
+                    Command="{x:Bind ViewModel.GoBackCommand}" />
+            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="600" HorizontalAlignment="Center" Spacing="4" Padding="24,8,24,24">
 
             <controls:SettingsCard Header="Price Cache Duration"
                                    Description="How long cached prices remain valid (hours)">
@@ -71,6 +82,17 @@
                 <ToggleSwitch IsOn="{x:Bind ViewModel.EnableIconCache, Mode=TwoWay}" />
             </controls:SettingsCard>
 
+            <controls:SettingsCard Header="Open Market Links In"
+                                   Description="Choose where to open Steam Market links">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE71B;" />
+                </controls:SettingsCard.HeaderIcon>
+                <ComboBox SelectedIndex="{x:Bind ViewModel.SelectedOpenLinkInIndex, Mode=TwoWay}" MinWidth="120">
+                    <ComboBoxItem Content="Steam App" />
+                    <ComboBoxItem Content="Browser" />
+                </ComboBox>
+            </controls:SettingsCard>
+
             <controls:SettingsCard Header="CS2 Game Path"
                                    Description="Path to CS2 install folder for skin names and icons">
                 <controls:SettingsCard.HeaderIcon>
@@ -108,4 +130,5 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+    </Grid>
 </Page>

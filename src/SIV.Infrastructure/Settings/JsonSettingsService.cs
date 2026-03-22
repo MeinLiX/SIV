@@ -17,6 +17,7 @@ public sealed class JsonSettingsService : ISettingsService
     public bool EnableIconCache { get; set; } = true;
     public string Cs2GamePath { get; set; } = string.Empty;
     public string UpdateRepoUrl { get; set; } = "https://github.com/MeinLiX/SIV";
+    public OpenLinkIn OpenLinkIn { get; set; } = OpenLinkIn.Browser;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -43,7 +44,8 @@ public sealed class JsonSettingsService : ISettingsService
             Theme = Theme,
             EnableIconCache = EnableIconCache,
             Cs2GamePath = Cs2GamePath,
-            UpdateRepoUrl = UpdateRepoUrl
+            UpdateRepoUrl = UpdateRepoUrl,
+            OpenLinkIn = OpenLinkIn
         };
         var json = JsonSerializer.Serialize(data, _jsonOptions);
         await File.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
@@ -65,6 +67,7 @@ public sealed class JsonSettingsService : ISettingsService
         EnableIconCache = data.EnableIconCache;
         Cs2GamePath = data.Cs2GamePath;
         UpdateRepoUrl = data.UpdateRepoUrl;
+        OpenLinkIn = data.OpenLinkIn;
     }
 
     private sealed class SettingsData
@@ -77,5 +80,6 @@ public sealed class JsonSettingsService : ISettingsService
         public bool EnableIconCache { get; set; } = true;
         public string Cs2GamePath { get; set; } = string.Empty;
         public string UpdateRepoUrl { get; set; } = "https://github.com/MeinLiX/SIV";
+        public OpenLinkIn OpenLinkIn { get; set; } = OpenLinkIn.Browser;
     }
 }

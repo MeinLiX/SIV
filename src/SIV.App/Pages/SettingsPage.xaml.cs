@@ -24,6 +24,7 @@ public sealed partial class SettingsPage : Page
         {
             ViewModel = vm;
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+            ViewModel.OnSaved = ShowPostSaveDialog;
             Bindings.Update();
         }
     }
@@ -32,7 +33,10 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedFrom(e);
         if (ViewModel is not null)
+        {
             ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+            ViewModel.OnSaved = null;
+        }
     }
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -40,6 +44,25 @@ public sealed partial class SettingsPage : Page
         if (e.PropertyName == nameof(SettingsViewModel.SelectedThemeIndex))
         {
             App.ApplyTheme((AppTheme)ViewModel.SelectedThemeIndex);
+        }
+    }
+
+    private async void ShowPostSaveDialog()
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Settings saved",
+            Content = "Would you like to go back or continue editing?",
+            PrimaryButtonText = "Go Back",
+            CloseButtonText = "Stay",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            ViewModel.GoBackCommand.Execute(null);
         }
     }
 

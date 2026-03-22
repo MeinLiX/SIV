@@ -14,6 +14,7 @@ public partial class InventoryViewModel : ViewModelBase
     private readonly IGCServiceFactory _gcFactory;
     private readonly IPricingService _pricingService;
     private readonly INavigationService _navigation;
+    private readonly ISettingsService _settingsService;
     private readonly uint _appId;
     private bool _shouldAutoLoadOnActivate;
     private IReadOnlyList<InventoryItem> _allItems = [];
@@ -76,12 +77,14 @@ public partial class InventoryViewModel : ViewModelBase
         IGCServiceFactory gcFactory,
         IPricingService pricingService,
         INavigationService navigation,
+        ISettingsService settingsService,
         uint appId,
         bool autoLoadOnActivate = false)
     {
         _gcFactory = gcFactory;
         _pricingService = pricingService;
         _navigation = navigation;
+        _settingsService = settingsService;
         _appId = appId;
         _shouldAutoLoadOnActivate = autoLoadOnActivate;
 
@@ -291,7 +294,7 @@ public partial class InventoryViewModel : ViewModelBase
                 ? item.CustomName
                 : item.Name;
             var vm = new CasketDetailViewModel(casketLabel, item.CustomDescription, [], _navigation, _pricingService, LoadContentsAsync,
-                _gcFactory.GetItemDefinitionProvider(_appId), _appId);
+                _gcFactory.GetItemDefinitionProvider(_appId), _settingsService, _appId);
 
             vm.OnTotalPriceChanged = total =>
             {
@@ -317,8 +320,10 @@ public partial class InventoryViewModel : ViewModelBase
     [RelayCommand]
     private void OpenMarketListing(string? marketHashName)
     {
-        SteamMarketUrl.OpenInBrowser(_appId, marketHashName ?? string.Empty);
+        SteamMarketUrl.Open(_appId, marketHashName ?? string.Empty, _settingsService.OpenLinkIn);
     }
+
+    public string MarketLinkTooltip => SteamMarketUrl.GetTooltip(_settingsService.OpenLinkIn);
 
     [RelayCommand]
     private void OpenGroupDetails(InventoryGroupViewModel group)

@@ -13,6 +13,7 @@ public partial class CasketDetailViewModel : ViewModelBase
     private readonly INavigationService _navigation;
     private readonly IPricingService? _pricingService;
     private readonly IItemDefinitionProvider? _itemDefs;
+    private readonly ISettingsService? _settingsService;
     private readonly Func<bool, CancellationToken, Task<IReadOnlyList<InventoryItem>>>? _reloadContentsAsync;
     private readonly uint _appId;
     private List<InventoryItemViewModel> _allItems = [];
@@ -78,11 +79,13 @@ public partial class CasketDetailViewModel : ViewModelBase
         IPricingService? pricingService = null,
         Func<bool, CancellationToken, Task<IReadOnlyList<InventoryItem>>>? reloadContentsAsync = null,
         IItemDefinitionProvider? itemDefs = null,
+        ISettingsService? settingsService = null,
         uint appId = 0)
     {
         _navigation = navigation;
         _pricingService = pricingService;
         _itemDefs = itemDefs;
+        _settingsService = settingsService;
         _reloadContentsAsync = reloadContentsAsync;
         _appId = appId;
         CasketName = casketName;
@@ -127,8 +130,10 @@ public partial class CasketDetailViewModel : ViewModelBase
     [RelayCommand]
     private void OpenMarketListing(string? marketHashName)
     {
-        SteamMarketUrl.OpenInBrowser(_appId, marketHashName ?? string.Empty);
+        SteamMarketUrl.Open(_appId, marketHashName ?? string.Empty, _settingsService?.OpenLinkIn ?? Domain.Enums.OpenLinkIn.Browser);
     }
+
+    public string MarketLinkTooltip => SteamMarketUrl.GetTooltip(_settingsService?.OpenLinkIn ?? Domain.Enums.OpenLinkIn.Browser);
 
     [RelayCommand]
     private void ToggleSort(string fieldName)

@@ -136,7 +136,7 @@
                                     CommandParameter="{Binding}"
                                     Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
                             <Button Content="&#xE719;" FontFamily="Segoe MDL2 Assets" FontSize="11"
-                                    ToolTipService.ToolTip="Steam Market" Padding="4,2"
+                                    ToolTipService.ToolTip="{Binding ElementName=RootPage, Path=ViewModel.MarketLinkTooltip}" Padding="4,2"
                                     Command="{Binding ElementName=RootPage, Path=ViewModel.OpenMarketListingCommand}"
                                     CommandParameter="{x:Bind MarketHashName}"
                                     Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
@@ -233,7 +233,7 @@
                                     CommandParameter="{Binding}"
                                     Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
                             <Button Content="&#xE719;" FontFamily="Segoe MDL2 Assets" FontSize="11"
-                                    ToolTipService.ToolTip="Steam Market" Padding="4,2"
+                                    ToolTipService.ToolTip="{Binding ElementName=RootPage, Path=ViewModel.MarketLinkTooltip}" Padding="4,2"
                                     Command="{Binding ElementName=RootPage, Path=ViewModel.OpenMarketListingCommand}"
                                     CommandParameter="{x:Bind MarketHashName}"
                                     Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />

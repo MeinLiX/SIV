@@ -123,7 +123,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnGameSelected(uint appId)
     {
-        var vm = new InventoryViewModel(_gcFactory, _pricingService, _navigation, appId, autoLoadOnActivate: true);
+        var vm = new InventoryViewModel(_gcFactory, _pricingService, _navigation, _settingsService, appId, autoLoadOnActivate: true);
         _navigation.NavigateTo(vm);
     }
 
@@ -136,7 +136,7 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void NavigateToSettings()
     {
-        var vm = new SettingsViewModel(_settingsService);
+        var vm = new SettingsViewModel(_settingsService, _navigation);
         _navigation.NavigateTo(vm);
     }
 

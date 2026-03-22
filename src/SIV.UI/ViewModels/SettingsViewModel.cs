@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SIV.Application.Interfaces;
 using SIV.Domain.Enums;
+using SIV.UI.Services;
 using System.Reflection;
 
 namespace SIV.UI.ViewModels;
@@ -9,6 +10,7 @@ namespace SIV.UI.ViewModels;
 public partial class SettingsViewModel : ViewModelBase
 {
     private readonly ISettingsService _settings;
+    private readonly INavigationService _navigation;
 
     [ObservableProperty]
     private int _priceCacheDurationHours;
@@ -29,6 +31,9 @@ public partial class SettingsViewModel : ViewModelBase
     private bool _enableIconCache;
 
     [ObservableProperty]
+    private int _selectedOpenLinkInIndex;
+
+    [ObservableProperty]
     private string _cs2GamePath = string.Empty;
 
     [ObservableProperty]
@@ -43,9 +48,10 @@ public partial class SettingsViewModel : ViewModelBase
 
     public override string Title => "Settings";
 
-    public SettingsViewModel(ISettingsService settings)
+    public SettingsViewModel(ISettingsService settings, INavigationService navigation)
     {
         _settings = settings;
+        _navigation = navigation;
         LoadSettings();
     }
 
@@ -57,6 +63,7 @@ public partial class SettingsViewModel : ViewModelBase
         PriceRetryDelaySeconds = _settings.PriceRetryDelaySeconds;
         SelectedThemeIndex = (int)_settings.Theme;
         EnableIconCache = _settings.EnableIconCache;
+        SelectedOpenLinkInIndex = (int)_settings.OpenLinkIn;
         Cs2GamePath = _settings.Cs2GamePath;
         ValidateCs2Path();
         HasChanges = false;
@@ -68,6 +75,7 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnPriceRetryDelaySecondsChanged(int value) => HasChanges = true;
     partial void OnSelectedThemeIndexChanged(int value) => HasChanges = true;
     partial void OnEnableIconCacheChanged(bool value) => HasChanges = true;
+    partial void OnSelectedOpenLinkInIndexChanged(int value) => HasChanges = true;
     partial void OnCs2GamePathChanged(string value)
     {
         HasChanges = true;
@@ -96,6 +104,8 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
+    public Action? OnSaved { get; set; }
+
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -105,10 +115,12 @@ public partial class SettingsViewModel : ViewModelBase
         _settings.PriceRetryDelaySeconds = PriceRetryDelaySeconds;
         _settings.Theme = (AppTheme)SelectedThemeIndex;
         _settings.EnableIconCache = EnableIconCache;
+        _settings.OpenLinkIn = (OpenLinkIn)SelectedOpenLinkInIndex;
         _settings.Cs2GamePath = Cs2GamePath;
         await _settings.SaveAsync();
         HasChanges = false;
         StatusText = "Settings saved";
+        OnSaved?.Invoke();
     }
 
     [RelayCommand]
@@ -116,5 +128,11 @@ public partial class SettingsViewModel : ViewModelBase
     {
         LoadSettings();
         StatusText = "Settings reset";
+    }
+
+    [RelayCommand]
+    private void GoBack()
+    {
+        _navigation.GoBack();
     }
 }

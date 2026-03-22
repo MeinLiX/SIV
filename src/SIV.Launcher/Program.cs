@@ -8,5 +8,5 @@ if (!File.Exists(appExe))
 Process.Start(new ProcessStartInfo
 {
     FileName = appExe,
-    UseShellExecute = true
+    UseShellExecute = false
 });

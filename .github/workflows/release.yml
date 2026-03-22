@@ -168,17 +168,3 @@ jobs:
             artifacts/SIV-v${VERSION}-win-x64-self-contained.zip \
             artifacts/SIV-v${VERSION}-win-x64-framework-dependent.zip
 
-      - name: Update latest tag
-        shell: bash
-        run: |
-          # Delete remote 'latest' tag if it exists (ignore errors if it doesn't)
-          git push origin :refs/tags/latest 2>/dev/null || true
-
-          # Delete local 'latest' tag if it exists
-          git tag -d latest 2>/dev/null || true
-
-          # Create new 'latest' tag at current commit
-          git tag latest
-
-          # Push the new 'latest' tag
-          git push origin latest

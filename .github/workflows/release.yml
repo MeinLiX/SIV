@@ -31,7 +31,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Fetch current latest version from GitHub releases
-          CURRENT=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name' 2>/dev/null || echo "v0.0.0")
+          CURRENT=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name' 2>/dev/null) || CURRENT="v0.0.0"
           CURRENT="${CURRENT#v}"
           echo "Current version: $CURRENT"
 
@@ -69,31 +69,38 @@ jobs:
         with:
           dotnet-version: ${{ steps.dotnet-version.outputs.sdk-version }}
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Publish Self-Contained (win-x64)
         run: |
-          dotnet publish src/SIV.App/SIV.App.csproj `
-            -c Release `
-            -r win-x64 `
-            -p:Platform=x64 `
-            --self-contained true `
-            -p:WindowsAppSDKSelfContained=true `
-            -p:Version=${{ steps.version.outputs.version }} `
-            -p:DebugType=none `
-            -p:DebugSymbols=false `
-            -o publish/self-contained
+          msbuild src/SIV.App/SIV.App.csproj `
+            /restore `
+            /t:Publish `
+            /p:Configuration=Release `
+            /p:RuntimeIdentifier=win-x64 `
+            /p:Platform=x64 `
+            /p:SelfContained=true `
+            /p:WindowsAppSDKSelfContained=true `
+            /p:Version=${{ steps.version.outputs.version }} `
+            /p:DebugType=none `
+            /p:DebugSymbols=false `
+            /p:PublishDir=${{ github.workspace }}\publish\self-contained\
 
       - name: Publish Framework-Dependent (win-x64)
         run: |
-          dotnet publish src/SIV.App/SIV.App.csproj `
-            -c Release `
-            -r win-x64 `
-            -p:Platform=x64 `
-            --self-contained false `
-            -p:WindowsAppSDKSelfContained=false `
-            -p:Version=${{ steps.version.outputs.version }} `
-            -p:DebugType=none `
-            -p:DebugSymbols=false `
-            -o publish/framework-dependent
+          msbuild src/SIV.App/SIV.App.csproj `
+            /restore `
+            /t:Publish `
+            /p:Configuration=Release `
+            /p:RuntimeIdentifier=win-x64 `
+            /p:Platform=x64 `
+            /p:SelfContained=false `
+            /p:WindowsAppSDKSelfContained=false `
+            /p:Version=${{ steps.version.outputs.version }} `
+            /p:DebugType=none `
+            /p:DebugSymbols=false `
+            /p:PublishDir=${{ github.workspace }}\publish\framework-dependent\
 
       - name: Publish Updater (win-x64)
         run: |

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 
-var appExe = Path.Combine(AppContext.BaseDirectory, "runtime", "SIV.App.exe");
+var runtimeDir = Path.Combine(AppContext.BaseDirectory, "runtime");
+var appExe = Path.Combine(runtimeDir, "SIV.App.exe");
 
 if (!File.Exists(appExe))
     return;
@@ -8,5 +9,6 @@ if (!File.Exists(appExe))
 Process.Start(new ProcessStartInfo
 {
     FileName = appExe,
+    WorkingDirectory = runtimeDir,
     UseShellExecute = false
 });

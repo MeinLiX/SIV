@@ -36,4 +36,10 @@
     <ProjectReference Include="..\SIV.UI\SIV.UI.csproj" />
   </ItemGroup>
 
+  <Target Name="CopyAppPriToPublish" AfterTargets="Publish"
+          Condition="Exists('$(OutDir)$(AssemblyName).pri')">
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).pri"
+          DestinationFolder="$(PublishDir)" />
+  </Target>
+
 </Project>

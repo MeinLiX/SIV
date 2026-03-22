@@ -36,6 +36,7 @@ internal static class Program
             var downloadUrl = GetArg(args, "--download-url");
             var expectedHash = GetArg(args, "--expected-hash");
             var appPid = GetArg(args, "--app-pid");
+            var waitForPid = GetArg(args, "--wait-for-pid");
             bool relocated = args.Contains("--relocated");
 
             if (string.IsNullOrEmpty(appDir) || string.IsNullOrEmpty(downloadUrl))
@@ -66,6 +67,8 @@ internal static class Program
                 foreach (var arg in args)
                     relocateStartInfo.ArgumentList.Add(arg);
 
+                relocateStartInfo.ArgumentList.Add("--wait-for-pid");
+                relocateStartInfo.ArgumentList.Add(Environment.ProcessId.ToString());
                 relocateStartInfo.ArgumentList.Add("--relocated");
 
                 Process.Start(relocateStartInfo);
@@ -79,23 +82,17 @@ internal static class Program
             EnsureDirectoryWriteAccess(appParentDir);
             LogProtectedInstallLocation(appDir);
 
+            if (!string.IsNullOrEmpty(waitForPid) && int.TryParse(waitForPid, out var originalUpdaterPid))
+            {
+                Log($"Waiting for original updater process (PID {originalUpdaterPid}) to exit...");
+                WaitForProcessExit(originalUpdaterPid, TimeSpan.FromSeconds(30), "original updater process");
+                await Task.Delay(1000);
+            }
+
             if (!string.IsNullOrEmpty(appPid) && int.TryParse(appPid, out var pid))
             {
                 Log($"Waiting for main app (PID {pid}) to exit...");
-                try
-                {
-                    using var proc = Process.GetProcessById(pid);
-                    if (!proc.WaitForExit(TimeSpan.FromSeconds(30)))
-                    {
-                        Log("WARNING: Main app did not exit within 30 seconds. Attempting to kill...");
-                        try { proc.Kill(entireProcessTree: true); proc.WaitForExit(5000); }
-                        catch { /* best effort */ }
-                    }
-                }
-                catch (ArgumentException)
-                {
-                    Log("Main app already exited.");
-                }
+                WaitForProcessExit(pid, TimeSpan.FromSeconds(30), "main app");
 
                 Log("Waiting for file handles to be released...");
                 await Task.Delay(3000);
@@ -137,6 +134,8 @@ internal static class Program
                 Log($"WARNING: '{ManifestFileName}' is missing. Continuing without per-file manifest validation.");
             else
                 await ValidateReleaseManifestAsync(stageDir, releaseManifest);
+
+            PreserveInstalledUpdaterPayload(appDir, stageDir);
 
             var stageSize = GetDirectorySize(stageDir);
             Log($"Prepared staged release ({stageSize / 1024 / 1024} MB).");
@@ -342,6 +341,19 @@ internal static class Program
         Log($"Validated {manifest.Files.Count} files against the release manifest.");
     }
 
+    private static void PreserveInstalledUpdaterPayload(string appDir, string stageDir)
+    {
+        var currentUpdaterDir = Path.Combine(appDir, "runtime", "updater");
+        if (!Directory.Exists(currentUpdaterDir))
+            return;
+
+        var stagedUpdaterDir = Path.Combine(stageDir, "runtime", "updater");
+        TryDeleteDirectory(stagedUpdaterDir);
+        Directory.CreateDirectory(stagedUpdaterDir);
+        CopyDirectoryContents(currentUpdaterDir, stagedUpdaterDir);
+        Log("Preserved the installed updater payload. Release updater files were ignored for this update.");
+    }
+
     private static void EnsureRequiredReleaseFiles(string stageDir)
     {
         var requiredFiles = new[]
@@ -356,6 +368,25 @@ internal static class Program
             var fullPath = Path.Combine(stageDir, relativePath);
             if (!File.Exists(fullPath))
                 throw new FileNotFoundException($"Required release file is missing: '{relativePath}'.", fullPath);
+        }
+    }
+
+    private static void CopyDirectoryContents(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, dir);
+            Directory.CreateDirectory(Path.Combine(destinationDir, relative));
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, file);
+            var destinationFile = Path.Combine(destinationDir, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+            File.Copy(file, destinationFile, overwrite: true);
         }
     }
 
@@ -553,6 +584,24 @@ internal static class Program
         if (protectedRoots.Any(root => normalizedAppDir.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
         {
             Log("WARNING: SIV is installed under Program Files. Updates may fail without elevated permissions.");
+        }
+    }
+
+    private static void WaitForProcessExit(int pid, TimeSpan timeout, string description)
+    {
+        try
+        {
+            using var proc = Process.GetProcessById(pid);
+            if (!proc.WaitForExit(timeout))
+            {
+                Log($"WARNING: {description} did not exit within {timeout.TotalSeconds:F0} seconds. Attempting to kill...");
+                try { proc.Kill(entireProcessTree: true); proc.WaitForExit(5000); }
+                catch { /* best effort */ }
+            }
+        }
+        catch (ArgumentException)
+        {
+            Log($"{description} already exited.");
         }
     }
 

@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Serilog;
+using SIV.Application.Interfaces;
+using SIV.Domain.Enums;
 using SIV.UI.ViewModels;
 
 namespace SIV.App;
@@ -25,10 +27,25 @@ public partial class App : Microsoft.UI.Xaml.Application
             Title = "SIV — Steam Inventory Viewer"
         };
 
+        ApplyTheme(Services.GetRequiredService<ISettingsService>().Theme);
+
         var mainVm = Services.GetRequiredService<MainViewModel>();
         ((MainWindow)MainWindow).Initialize(mainVm);
 
         MainWindow.Activate();
+    }
+
+    public static void ApplyTheme(AppTheme theme)
+    {
+        if (MainWindow.Content is FrameworkElement root)
+        {
+            root.RequestedTheme = theme switch
+            {
+                AppTheme.Dark => ElementTheme.Dark,
+                AppTheme.Light => ElementTheme.Light,
+                _ => ElementTheme.Default
+            };
+        }
     }
 
     private static void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)

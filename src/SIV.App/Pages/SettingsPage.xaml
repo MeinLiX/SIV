@@ -51,21 +51,16 @@
                            Minimum="1" Maximum="120" SpinButtonPlacementMode="Compact" />
             </controls:SettingsCard>
 
-            <controls:SettingsCard Header="Currency"
-                                   Description="Currency used for price display">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE8CB;" />
-                </controls:SettingsCard.HeaderIcon>
-                <TextBox Text="{x:Bind ViewModel.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Width="120" />
-            </controls:SettingsCard>
-
-            <controls:SettingsCard Header="Dark Theme"
-                                   Description="Use dark appearance">
+            <controls:SettingsCard Header="Theme"
+                                   Description="Choose app appearance">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE771;" />
                 </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch IsOn="{x:Bind ViewModel.UseDarkTheme, Mode=TwoWay}" />
+                <ComboBox SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}" MinWidth="120">
+                    <ComboBoxItem Content="Dark" />
+                    <ComboBoxItem Content="Light" />
+                    <ComboBoxItem Content="System" />
+                </ComboBox>
             </controls:SettingsCard>
 
             <controls:SettingsCard Header="Cache Icons Locally"

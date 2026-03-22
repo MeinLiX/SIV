@@ -1,5 +1,7 @@
 using SIV.Application.Interfaces;
+using SIV.Domain.Enums;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SIV.Infrastructure.Settings;
 
@@ -11,11 +13,16 @@ public sealed class JsonSettingsService : ISettingsService
     public int PriceRequestDelayMs { get; set; } = 3500;
     public int PriceMaxConsecutiveFailures { get; set; } = 3;
     public int PriceRetryDelaySeconds { get; set; } = 10;
-    public string Currency { get; set; } = "USD";
-    public bool UseDarkTheme { get; set; } = true;
+    public AppTheme Theme { get; set; } = AppTheme.Dark;
     public bool EnableIconCache { get; set; } = true;
     public string Cs2GamePath { get; set; } = string.Empty;
     public string UpdateRepoUrl { get; set; } = "https://github.com/MeinLiX/SIV";
+
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public JsonSettingsService(string appDataPath)
     {
@@ -33,13 +40,12 @@ public sealed class JsonSettingsService : ISettingsService
             PriceRequestDelayMs = PriceRequestDelayMs,
             PriceMaxConsecutiveFailures = PriceMaxConsecutiveFailures,
             PriceRetryDelaySeconds = PriceRetryDelaySeconds,
-            Currency = Currency,
-            UseDarkTheme = UseDarkTheme,
+            Theme = Theme,
             EnableIconCache = EnableIconCache,
             Cs2GamePath = Cs2GamePath,
             UpdateRepoUrl = UpdateRepoUrl
         };
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(data, _jsonOptions);
         await File.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
     }
 
@@ -48,15 +54,14 @@ public sealed class JsonSettingsService : ISettingsService
         if (!File.Exists(_filePath)) return;
 
         var json = await File.ReadAllTextAsync(_filePath).ConfigureAwait(false);
-        var data = JsonSerializer.Deserialize<SettingsData>(json);
+        var data = JsonSerializer.Deserialize<SettingsData>(json, _jsonOptions);
         if (data is null) return;
 
         PriceCacheDurationHours = data.PriceCacheDurationHours;
         PriceRequestDelayMs = data.PriceRequestDelayMs;
         PriceMaxConsecutiveFailures = data.PriceMaxConsecutiveFailures;
         PriceRetryDelaySeconds = data.PriceRetryDelaySeconds;
-        Currency = data.Currency;
-        UseDarkTheme = data.UseDarkTheme;
+        Theme = data.Theme;
         EnableIconCache = data.EnableIconCache;
         Cs2GamePath = data.Cs2GamePath;
         UpdateRepoUrl = data.UpdateRepoUrl;
@@ -68,8 +73,7 @@ public sealed class JsonSettingsService : ISettingsService
         public int PriceRequestDelayMs { get; set; } = 3500;
         public int PriceMaxConsecutiveFailures { get; set; } = 3;
         public int PriceRetryDelaySeconds { get; set; } = 10;
-        public string Currency { get; set; } = "USD";
-        public bool UseDarkTheme { get; set; } = true;
+        public AppTheme Theme { get; set; } = AppTheme.Dark;
         public bool EnableIconCache { get; set; } = true;
         public string Cs2GamePath { get; set; } = string.Empty;
         public string UpdateRepoUrl { get; set; } = "https://github.com/MeinLiX/SIV";

@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using SIV.Domain.Enums;
 using SIV.UI.ViewModels;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -22,7 +23,23 @@ public sealed partial class SettingsPage : Page
         if (e.Parameter is SettingsViewModel vm)
         {
             ViewModel = vm;
+            ViewModel.PropertyChanged += ViewModel_PropertyChanged;
             Bindings.Update();
+        }
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        if (ViewModel is not null)
+            ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsViewModel.SelectedThemeIndex))
+        {
+            App.ApplyTheme((AppTheme)ViewModel.SelectedThemeIndex);
         }
     }
 

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SIV.Application.Interfaces;
+using SIV.Domain.Enums;
 using System.Reflection;
 
 namespace SIV.UI.ViewModels;
@@ -22,10 +23,7 @@ public partial class SettingsViewModel : ViewModelBase
     private int _priceRetryDelaySeconds;
 
     [ObservableProperty]
-    private string _currency = "USD";
-
-    [ObservableProperty]
-    private bool _useDarkTheme;
+    private int _selectedThemeIndex;
 
     [ObservableProperty]
     private bool _enableIconCache;
@@ -57,8 +55,7 @@ public partial class SettingsViewModel : ViewModelBase
         PriceRequestDelayMs = _settings.PriceRequestDelayMs;
         PriceMaxConsecutiveFailures = _settings.PriceMaxConsecutiveFailures;
         PriceRetryDelaySeconds = _settings.PriceRetryDelaySeconds;
-        Currency = _settings.Currency;
-        UseDarkTheme = _settings.UseDarkTheme;
+        SelectedThemeIndex = (int)_settings.Theme;
         EnableIconCache = _settings.EnableIconCache;
         Cs2GamePath = _settings.Cs2GamePath;
         ValidateCs2Path();
@@ -69,8 +66,7 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnPriceRequestDelayMsChanged(int value) => HasChanges = true;
     partial void OnPriceMaxConsecutiveFailuresChanged(int value) => HasChanges = true;
     partial void OnPriceRetryDelaySecondsChanged(int value) => HasChanges = true;
-    partial void OnCurrencyChanged(string value) => HasChanges = true;
-    partial void OnUseDarkThemeChanged(bool value) => HasChanges = true;
+    partial void OnSelectedThemeIndexChanged(int value) => HasChanges = true;
     partial void OnEnableIconCacheChanged(bool value) => HasChanges = true;
     partial void OnCs2GamePathChanged(string value)
     {
@@ -107,8 +103,7 @@ public partial class SettingsViewModel : ViewModelBase
         _settings.PriceRequestDelayMs = PriceRequestDelayMs;
         _settings.PriceMaxConsecutiveFailures = PriceMaxConsecutiveFailures;
         _settings.PriceRetryDelaySeconds = PriceRetryDelaySeconds;
-        _settings.Currency = Currency;
-        _settings.UseDarkTheme = UseDarkTheme;
+        _settings.Theme = (AppTheme)SelectedThemeIndex;
         _settings.EnableIconCache = EnableIconCache;
         _settings.Cs2GamePath = Cs2GamePath;
         await _settings.SaveAsync();

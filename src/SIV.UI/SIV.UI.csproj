@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+    <PackageReference Include="QRCoder" Version="1.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SIV.Domain\SIV.Domain.csproj" />
+    <ProjectReference Include="..\SIV.Application\SIV.Application.csproj" />
+  </ItemGroup>
+
+</Project>

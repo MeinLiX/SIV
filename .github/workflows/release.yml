@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: "Release notes for this version"
+        required: true
+        type: string
+      version_override:
+        description: "Custom version (e.g. 2.0.0). Leave empty to auto-increment patch."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch current latest version from GitHub releases
+          CURRENT=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name' 2>/dev/null || echo "v0.0.0")
+          CURRENT="${CURRENT#v}"
+          echo "Current version: $CURRENT"
+
+          OVERRIDE="${{ inputs.version_override }}"
+          if [ -n "$OVERRIDE" ]; then
+            OVERRIDE="${OVERRIDE#v}"
+            NEW_VERSION="$OVERRIDE"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+            MAJOR=${MAJOR:-0}
+            MINOR=${MINOR:-0}
+            PATCH=${PATCH:-0}
+
+            if [ "$CURRENT" = "0.0.0" ]; then
+              NEW_VERSION="1.0.0"
+            else
+              PATCH=$((PATCH + 1))
+              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            fi
+          fi
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "New version: $NEW_VERSION"
+
+      - name: Read .NET SDK version
+        id: dotnet-version
+        shell: bash
+        run: |
+          SDK_VERSION=$(jq -r '.sdk.version' SIV/global.json)
+          echo "sdk-version=$SDK_VERSION" >> "$GITHUB_OUTPUT"
+          echo "SDK version: $SDK_VERSION"
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.dotnet-version.outputs.sdk-version }}
+
+      - name: Publish Self-Contained (win-x64)
+        run: |
+          dotnet publish SIV/src/SIV.App/SIV.App.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:Platform=x64 `
+            --self-contained true `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:DebugType=none `
+            -p:DebugSymbols=false `
+            -o publish/self-contained
+
+      - name: Publish Framework-Dependent (win-x64)
+        run: |
+          dotnet publish SIV/src/SIV.App/SIV.App.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:Platform=x64 `
+            --self-contained false `
+            -p:WindowsAppSDKSelfContained=false `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:DebugType=none `
+            -p:DebugSymbols=false `
+            -o publish/framework-dependent
+
+      - name: Publish Updater (win-x64)
+        run: |
+          dotnet publish SIV/src/SIV.Updater/SIV.Updater.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:PublishTrimmed=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:DebugType=none `
+            -p:DebugSymbols=false `
+            -o publish/updater
+
+      - name: Bundle Updater into releases
+        shell: bash
+        run: |
+          mkdir -p publish/self-contained/updater
+          cp publish/updater/SIV.Updater.exe publish/self-contained/updater/
+
+          mkdir -p publish/framework-dependent/updater
+          cp publish/updater/SIV.Updater.exe publish/framework-dependent/updater/
+
+      - name: Create ZIP archives
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p artifacts
+
+          cd publish/self-contained
+          7z a -tzip "../../artifacts/SIV-v${VERSION}-win-x64-self-contained.zip" .
+          cd ../..
+
+          cd publish/framework-dependent
+          7z a -tzip "../../artifacts/SIV-v${VERSION}-win-x64-framework-dependent.zip" .
+          cd ../..
+
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd artifacts
+          sha256sum *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
+
+          printf '%s' "$RELEASE_NOTES" > release_notes.md
+
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --title "$TAG" \
+            --notes-file release_notes.md \
+            --latest \
+            artifacts/SIV-v${VERSION}-win-x64-self-contained.zip \
+            artifacts/SIV-v${VERSION}-win-x64-framework-dependent.zip \
+            artifacts/SHA256SUMS.txt
+
+      - name: Update latest tag
+        shell: bash
+        run: |
+          # Delete remote 'latest' tag if it exists (ignore errors if it doesn't)
+          git push origin :refs/tags/latest 2>/dev/null || true
+
+          # Delete local 'latest' tag if it exists
+          git tag -d latest 2>/dev/null || true
+
+          # Create new 'latest' tag at current commit
+          git tag latest
+
+          # Push the new 'latest' tag
+          git push origin latest

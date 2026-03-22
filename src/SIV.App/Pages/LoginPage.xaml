@@ -1,0 +1,78 @@
+<Page
+    x:Class="SIV.App.Pages.LoginPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:SIV.App.Converters">
+
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <converters:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True" />
+        <converters:NullToVisibilityConverter x:Key="NullToVis" />
+        <converters:BytesToImageConverter x:Key="BytesToImage" />
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="400" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Spacing="16" Padding="40">
+
+            <StackPanel Spacing="16" Visibility="{x:Bind ViewModel.IsQrMode, Mode=OneWay, Converter={StaticResource InvertBoolToVis}}">
+                <TextBlock Text="Session expired — please sign in again"
+                           Visibility="{x:Bind ViewModel.IsReAuth, Mode=OneWay, Converter={StaticResource BoolToVis}}"
+                           Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                           HorizontalAlignment="Center" FontSize="13" Margin="0,0,0,4" />
+
+                <TextBox Header="Username" Text="{x:Bind ViewModel.Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="Enter your Steam username" />
+
+                <PasswordBox Header="Password" Password="{x:Bind ViewModel.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="Enter your password" />
+
+                <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.IsTwoFactorRequired, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+                    <TextBox Header="Two-Factor Code" Text="{x:Bind ViewModel.TwoFactorCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="Enter 2FA code" />
+                </StackPanel>
+
+                <Button Content="Login" Command="{x:Bind ViewModel.LoginCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Style="{StaticResource AccentButtonStyle}" />
+
+                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
+
+                <Button Content="Login via QR Code" Command="{x:Bind ViewModel.LoginViaQrCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+
+                <Button Content="Back" Command="{x:Bind ViewModel.CancelLoginCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Visibility="{x:Bind ViewModel.CanCancel, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+            </StackPanel>
+
+            <StackPanel Spacing="16" Visibility="{x:Bind ViewModel.IsQrMode, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Scan with Steam Mobile App"
+                           HorizontalAlignment="Center" FontSize="14" Opacity="0.8" />
+
+                <Border HorizontalAlignment="Center" CornerRadius="12" Padding="12"
+                        Background="White"
+                        Visibility="{x:Bind ViewModel.QrCodePngBytes, Mode=OneWay, Converter={StaticResource NullToVis}}">
+                    <Image Source="{x:Bind ViewModel.QrCodePngBytes, Mode=OneWay, Converter={StaticResource BytesToImage}}"
+                           Width="256" Height="256" />
+                </Border>
+
+                <Button Content="Cancel" Command="{x:Bind ViewModel.CancelQrCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            </StackPanel>
+
+            <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                          HorizontalAlignment="Center" Width="32" Height="32"
+                          Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+
+            <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                       Visibility="{x:Bind ViewModel.StatusText, Mode=OneWay, Converter={StaticResource NullToVis}}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       HorizontalAlignment="Center" TextWrapping="Wrap" />
+
+            <InfoBar x:Name="ErrorBar" IsOpen="False" Severity="Error" IsClosable="True"
+                     Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToVis}}"
+                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

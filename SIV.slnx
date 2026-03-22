@@ -1,0 +1,25 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="src/SIV.App/SIV.App.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="src/SIV.Application/SIV.Application.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="src/SIV.Domain/SIV.Domain.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="src/SIV.Infrastructure/SIV.Infrastructure.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="src/SIV.UI/SIV.UI.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="src/SIV.Updater/SIV.Updater.csproj">
+    <Platform Project="x64" />
+  </Project>
+</Solution>

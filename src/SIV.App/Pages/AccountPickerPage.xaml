@@ -1,0 +1,91 @@
+<Page
+    x:Class="SIV.App.Pages.AccountPickerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:SIV.App.Converters">
+
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <converters:NullToVisibilityConverter x:Key="NullToVis" />
+    </Page.Resources>
+
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="500" Padding="40">
+        <StackPanel Spacing="24">
+
+            <TextBlock Text="Select Account"
+                       FontSize="24" FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
+
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Accounts, Mode=OneWay}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,4" Padding="0" CornerRadius="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    Padding="12,10" CornerRadius="8,0,0,8"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1,1,0,1"
+                                    Tag="{Binding}"
+                                    Click="AccountButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="14">
+                                    <Border Width="48" Height="48" CornerRadius="24"
+                                            Background="{ThemeResource ControlFillColorDefaultBrush}">
+                                        <PersonPicture Width="48" Height="48"
+                                                       ProfilePicture="{Binding AvatarUrl}"
+                                                       DisplayName="{Binding DisplayName}" />
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   FontSize="15" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding AccountName}"
+                                                   FontSize="12" Opacity="0.6" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Grid.Column="1"
+                                    Content="&#xE74D;" FontFamily="Segoe MDL2 Assets"
+                                    Width="40" CornerRadius="0,8,8,0"
+                                    VerticalAlignment="Stretch"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="0,1,1,1"
+                                    Tag="{Binding}"
+                                    Click="RemoveButton_Click"
+                                    ToolTipService.ToolTip="Remove account" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                    Padding="12,14" CornerRadius="8"
+                    Command="{x:Bind ViewModel.AddAccountCommand}"
+                    Style="{StaticResource AccentButtonStyle}">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <FontIcon Glyph="&#xE710;" FontSize="16" />
+                    <TextBlock Text="Add Account" FontSize="14" />
+                </StackPanel>
+            </Button>
+
+            <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                          HorizontalAlignment="Center" Width="32" Height="32"
+                          Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+
+            <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                       Visibility="{x:Bind ViewModel.StatusText, Mode=OneWay, Converter={StaticResource NullToVis}}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       HorizontalAlignment="Center" TextWrapping="Wrap" />
+
+            <InfoBar IsOpen="False" Severity="Error" IsClosable="True"
+                     Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToVis}}"
+                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+        </StackPanel>
+    </Grid>
+</Page>

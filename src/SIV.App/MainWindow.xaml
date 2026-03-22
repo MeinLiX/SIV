@@ -1,0 +1,85 @@
+<Window
+    x:Class="SIV.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SIV.App">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="48" Padding="16,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button x:Name="BackButton" Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
+                        Visibility="Collapsed" Click="BackButton_Click"
+                        Width="36" Height="36" Padding="0" />
+                <TextBlock x:Name="AppTitleText" Text="SIV" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock x:Name="VersionText" Text="" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <Button x:Name="UpdateButton" Grid.Column="2"
+                    Visibility="Collapsed" VerticalAlignment="Center" Margin="0,0,8,0"
+                    Click="UpdateButton_Click" Height="30" Padding="8,4"
+                    CornerRadius="4">
+                <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#107C10" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#0E6F0E" />
+                    <SolidColorBrush x:Key="ButtonForeground" Color="White" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="White" />
+                </Button.Resources>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE896;" FontSize="14" />
+                    <TextBlock x:Name="UpdateButtonText" Text="Update Available" FontSize="12" />
+                </StackPanel>
+            </Button>
+
+            <Button x:Name="ProfileButton" Grid.Column="3" Padding="0" BorderThickness="0"
+                    Background="Transparent" Visibility="Collapsed"
+                    VerticalAlignment="Center" Margin="0,0,48,0"
+                    Height="32" CornerRadius="4">
+                <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuFlyoutItem x:Name="SettingsMenuItem" Text="Settings"
+                                        Click="SettingsButton_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE713;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem x:Name="LogoutMenuItem" Text="Logout"
+                                        Click="LogoutButton_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE7E8;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+                <StackPanel Orientation="Horizontal" Spacing="0">
+                    <Image x:Name="AvatarImage"
+                           Width="32" Height="32"
+                           Stretch="UniformToFill" />
+                    <Border Background="#40808080" CornerRadius="0,4,4,0"
+                            Padding="8,0,6,0" VerticalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock x:Name="PlayerNameText" Text=""
+                                       FontSize="13" VerticalAlignment="Center" />
+                            <FontIcon Glyph="&#xE70D;" FontSize="10" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <Frame x:Name="ContentFrame" Grid.Row="1" />
+    </Grid>
+
+</Window>

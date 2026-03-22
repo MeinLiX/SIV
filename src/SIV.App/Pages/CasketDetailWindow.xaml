@@ -1,0 +1,65 @@
+<Window
+    x:Class="SIV.App.Pages.CasketDetailWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid MinHeight="52" Padding="16,8,8,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Grid x:Name="DragRegion" Grid.Column="0">
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{x:Bind ViewModel.CasketName, Mode=OneWay}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <Border Background="{ThemeResource SystemFillColorNeutralBackgroundBrush}"
+                                    CornerRadius="8"
+                                    Padding="8,2">
+                                <TextBlock FontSize="11" Opacity="0.78">
+                                    <Run Text="{x:Bind ViewModel.TotalItemCount, Mode=OneWay}" />
+                                    <Run Text=" items" />
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock x:Name="CasketDescriptionText"
+                                   Text="{x:Bind ViewModel.CasketDescription, Mode=OneWay}"
+                                   FontSize="12"
+                                   Opacity="0.68"
+                                   TextTrimming="CharacterEllipsis"
+                                   Visibility="Collapsed" />
+                    </StackPanel>
+                </Grid>
+
+                <Button Grid.Column="1"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        Margin="8,0,0,0"
+                        Click="CloseButton_Click"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="Close storage unit">
+                    <FontIcon Glyph="&#xE711;" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <Frame x:Name="ContentFrame" Grid.Row="1" />
+    </Grid>
+</Window>

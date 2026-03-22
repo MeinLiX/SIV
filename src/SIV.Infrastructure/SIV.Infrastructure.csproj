@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0-*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-*" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0-*" />
+    <PackageReference Include="SteamKit2" Version="3.*" />
+    <PackageReference Include="protobuf-net" Version="3.*" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.0-*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SIV.Domain\SIV.Domain.csproj" />
+    <ProjectReference Include="..\SIV.Application\SIV.Application.csproj" />
+  </ItemGroup>
+
+</Project>

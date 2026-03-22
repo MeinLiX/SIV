@@ -7,6 +7,17 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/Dotnet.gitignore
 
+# IDE / Editor
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local .NET SDK
+.dotnet-home/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/

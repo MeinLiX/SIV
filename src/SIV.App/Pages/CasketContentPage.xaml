@@ -1,0 +1,283 @@
+<Page
+    x:Name="RootPage"
+    x:Class="SIV.App.Pages.CasketContentPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SIV.UI.ViewModels"
+    xmlns:converters="using:SIV.App.Converters">
+
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <converters:BoolToVisibilityConverter x:Key="InvertBoolToVis" Invert="True" />
+        <converters:NullToVisibilityConverter x:Key="NullToVis" />
+        <converters:StringToImageSourceConverter x:Key="StringToImageSource" />
+        <converters:HexStringToBrushConverter x:Key="HexToBrush" />
+        <converters:HexToRadialGlowBrushConverter x:Key="HexToGlow" />
+        <converters:DecimalFormatConverter x:Key="DecimalFormat" />
+    </Page.Resources>
+
+    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <CommandBar Grid.Row="0" DefaultLabelPosition="Right" IsOpen="False">
+            <AppBarButton Label="Fetch Prices" Icon="Shop"
+                          Command="{x:Bind ViewModel.FetchPricesCommand}" />
+            <AppBarButton Label="Refresh Storage" Icon="Refresh"
+                          Command="{x:Bind ViewModel.RefreshStorageCommand}" />
+            <AppBarToggleButton Label="Group Items" Icon="Sort"
+                                IsChecked="{x:Bind ViewModel.IsGrouped, Mode=TwoWay}" />
+        </CommandBar>
+
+        <Grid Grid.Row="1" Margin="16,8,16,4" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <AutoSuggestBox Grid.Column="0" Width="320"
+                            PlaceholderText="Search storage"
+                            QueryIcon="Find"
+                            Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="Sort" VerticalAlignment="Center" Opacity="0.7" />
+                <ComboBox ItemsSource="{x:Bind ViewModel.Sort.Options}"
+                          SelectedItem="{x:Bind ViewModel.Sort.SelectedOption, Mode=TwoWay}"
+                          MinWidth="120"
+                          VerticalAlignment="Center" />
+                <Button Command="{x:Bind ViewModel.ToggleSortDirectionCommand}"
+                        Padding="8,6"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Toggle sort direction">
+                    <FontIcon Glyph="{x:Bind ViewModel.Sort.DirectionGlyph, Mode=OneWay}" FontSize="12" />
+                </Button>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="Type" VerticalAlignment="Center" Opacity="0.7" />
+                <ComboBox MinWidth="170"
+                          ItemsSource="{x:Bind ViewModel.AvailableTypes, Mode=OneWay}"
+                          SelectedItem="{x:Bind ViewModel.SelectedTypeFilter, Mode=TwoWay}" />
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="16,4" Spacing="6">
+            <InfoBar Severity="Error" IsClosable="True" IsOpen="True"
+                     Visibility="{x:Bind ViewModel.ErrorMessage, Mode=OneWay, Converter={StaticResource NullToVis}}"
+                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+            <ProgressBar Maximum="{x:Bind ViewModel.PricingTotal, Mode=OneWay}"
+                         Value="{x:Bind ViewModel.PricingProgress, Mode=OneWay}"
+                         Visibility="{x:Bind ViewModel.IsPricingRunning, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+        </StackPanel>
+
+        <ListView Grid.Row="3" ItemsSource="{x:Bind ViewModel.Groups, Mode=OneWay}"
+                  Padding="8,0"
+                  SelectionMode="None"
+                  Background="Transparent"
+                  Visibility="{x:Bind ViewModel.IsGrouped, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:InventoryGroupViewModel">
+                    <Grid Padding="8,6" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Width="80" Height="80" CornerRadius="6"
+                                BorderBrush="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                BorderThickness="2"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                            <Grid>
+                                <Border CornerRadius="4"
+                                        Background="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToGlow}}" />
+                                <Image Source="{x:Bind IconUrl, Mode=OneWay, Converter={StaticResource StringToImageSource}}"
+                                       Stretch="Uniform" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToBrush}}" />
+                                <FontIcon Glyph="&#xE72E;" FontSize="12" Opacity="0.6"
+                                          ToolTipService.ToolTip="Temporary trade lock"
+                                          Visibility="{x:Bind HasTemporaryTradeLock, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Bind TradeLockExpiresText, Mode=OneWay}" FontSize="11" Opacity="0.5"
+                                           Visibility="{x:Bind HasTemporaryTradeLock, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Bind GraffitiUsesText, Mode=OneWay}" FontSize="11" Opacity="0.5"
+                                           Visibility="{x:Bind IsGraffiti, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind CountDisplay, Mode=OneWay}" Opacity="0.7" FontSize="12" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                            <TextBlock Text="{x:Bind UnitPriceUsd, Mode=OneWay, Converter={StaticResource DecimalFormat}}"
+                                       HorizontalAlignment="Right" Opacity="0.7" FontSize="12" />
+                            <TextBlock Text="{x:Bind TotalPriceUsd, Mode=OneWay, Converter={StaticResource DecimalFormat}}"
+                                       HorizontalAlignment="Right" FontWeight="SemiBold" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="3" VerticalAlignment="Center" Orientation="Horizontal" Spacing="4">
+                            <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                    ToolTipService.ToolTip="Refresh Price" Padding="4,2"
+                                    Command="{Binding ElementName=RootPage, Path=ViewModel.RefreshGroupPriceCommand}"
+                                    CommandParameter="{Binding}"
+                                    Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            <Button Content="&#xE719;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                    ToolTipService.ToolTip="Steam Market" Padding="4,2"
+                                    Command="{Binding ElementName=RootPage, Path=ViewModel.OpenMarketListingCommand}"
+                                    CommandParameter="{x:Bind MarketHashName}"
+                                    Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            <ProgressRing IsActive="{x:Bind IsRefreshingPrice, Mode=OneWay}" Width="16" Height="16"
+                                          Visibility="{x:Bind IsRefreshingPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <ListView Grid.Row="3" ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}"
+                  Padding="8,0"
+                  SelectionMode="None"
+                  Background="Transparent"
+                  Visibility="{x:Bind ViewModel.IsGrouped, Mode=OneWay, Converter={StaticResource InvertBoolToVis}}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:InventoryItemViewModel">
+                    <Grid Padding="8,6" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Width="80" Height="80" CornerRadius="6"
+                                BorderBrush="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                BorderThickness="2"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                            <Grid>
+                                <Border CornerRadius="4"
+                                        Background="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToGlow}}" />
+                                <Image Source="{x:Bind IconUrl, Mode=OneWay, Converter={StaticResource StringToImageSource}}"
+                                       Stretch="Uniform" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToBrush}}" />
+                                <FontIcon Glyph="&#xE72E;" FontSize="12" Opacity="0.6"
+                                          ToolTipService.ToolTip="Temporary trade lock"
+                                          Visibility="{x:Bind IsTemporaryTradeLock, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Bind TradeLockExpiresText, Mode=OneWay}" FontSize="11" Foreground="#FF9800"
+                                           Visibility="{x:Bind HasTradeLockRemaining, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Bind GraffitiUsesText, Mode=OneWay}" FontSize="11" Opacity="0.5"
+                                           Visibility="{x:Bind IsGraffiti, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Bind QualityDisplayName, Mode=OneWay}"
+                                           Foreground="{x:Bind QualityColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                           FontSize="12" VerticalAlignment="Center"
+                                           Visibility="{x:Bind HasSpecialQuality, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind CustomName, Mode=OneWay}" FontSize="12" FontStyle="Italic"
+                                       Opacity="0.7" TextTrimming="CharacterEllipsis"
+                                       Visibility="{x:Bind HasCustomName, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.7">
+                                <TextBlock Text="{x:Bind ExteriorDisplayName}" FontSize="12"
+                                           Foreground="{x:Bind ExteriorColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                           Visibility="{x:Bind HasExterior, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Bind RarityDisplayName}"
+                                           Foreground="{x:Bind RarityColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                           FontSize="12" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="12" Opacity="0.7"
+                                        Visibility="{x:Bind HasFloat, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+                                <TextBlock FontSize="11">
+                                    <Run Text="Float: " FontWeight="SemiBold" />
+                                    <Run Text="{x:Bind FloatDisplayName, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock FontSize="11"
+                                           Visibility="{x:Bind HasPattern, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+                                    <Run Text="Pattern: " FontWeight="SemiBold" />
+                                    <Run Text="{x:Bind PatternDisplayName, Mode=OneWay}" />
+                                </TextBlock>
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind StickersSummary, Mode=OneWay}" Opacity="0.6"
+                                       FontSize="11" TextTrimming="CharacterEllipsis"
+                                       Visibility="{x:Bind HasStickers, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{x:Bind KeychainSummary, Mode=OneWay}" Opacity="0.6"
+                                       FontSize="11" TextTrimming="CharacterEllipsis"
+                                       Visibility="{x:Bind HasKeychain, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                    Orientation="Horizontal" Spacing="4">
+                            <TextBlock VerticalAlignment="Center" FontWeight="SemiBold"
+                                       Text="{x:Bind PriceUsd, Mode=OneWay, Converter={StaticResource DecimalFormat}}"
+                                       ToolTipService.ToolTip="{x:Bind PriceUpdatedAtText, Mode=OneWay}" />
+                            <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                    ToolTipService.ToolTip="Refresh Price" Padding="4,2"
+                                    Command="{Binding ElementName=RootPage, Path=ViewModel.RefreshItemPriceCommand}"
+                                    CommandParameter="{Binding}"
+                                    Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            <Button Content="&#xE719;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                    ToolTipService.ToolTip="Steam Market" Padding="4,2"
+                                    Command="{Binding ElementName=RootPage, Path=ViewModel.OpenMarketListingCommand}"
+                                    CommandParameter="{x:Bind MarketHashName}"
+                                    Visibility="{x:Bind CanFetchPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                            <ProgressRing IsActive="{x:Bind IsRefreshingPrice, Mode=OneWay}" Width="16" Height="16"
+                                          Visibility="{x:Bind IsRefreshingPrice, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <Grid Grid.Row="3"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              Visibility="{x:Bind ViewModel.ShowLoadingOverlay, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                <ProgressRing IsActive="True" Width="40" Height="40" />
+                <TextBlock Text="Loading storage..." HorizontalAlignment="Center" Opacity="0.72" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="4" Padding="16,12"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="24">
+                    <TextBlock VerticalAlignment="Center">
+                        <Run Text="Items: " FontWeight="SemiBold" />
+                        <Run Text="{x:Bind ViewModel.PriceSummary.ItemCountDisplay, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock VerticalAlignment="Center">
+                        <Run Text="Priced: " FontWeight="SemiBold" />
+                        <Run Text="{x:Bind ViewModel.PriceSummary.PricedItems, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="16" FontWeight="Bold"
+                           Text="{x:Bind ViewModel.PriceSummary.TotalValueFormatted, Mode=OneWay}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

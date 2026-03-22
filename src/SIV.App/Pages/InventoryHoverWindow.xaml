@@ -1,0 +1,298 @@
+<Window
+    x:Class="SIV.App.Pages.InventoryHoverWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SIV.UI.ViewModels"
+    xmlns:entities="using:SIV.Domain.Entities"
+    xmlns:converters="using:SIV.App.Converters">
+
+    <Grid x:Name="RootHitTarget" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+        <Grid.Resources>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+            <converters:NullToVisibilityConverter x:Key="NullToVis" />
+            <converters:NullToVisibilityConverter x:Key="InverseNullToVis" Invert="True" />
+            <converters:StringToImageSourceConverter x:Key="StringToImageSource" />
+            <converters:HexStringToBrushConverter x:Key="HexToBrush" />
+
+            <Style x:Key="InventoryPreviewPrimaryCardStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+
+            <Style x:Key="InventoryPreviewSideCardStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Padding" Value="14" />
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+
+            <Style x:Key="InventoryPreviewCaptionStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Opacity" Value="0.68" />
+            </Style>
+
+            <Style x:Key="InventoryPreviewChipStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Padding" Value="10,4" />
+                <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+            </Style>
+
+            <Style x:Key="InventoryPreviewAccentChipStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Padding" Value="10,5" />
+                <Setter Property="Background" Value="#33111111" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+
+            <DataTemplate x:Key="InventoryStickerCardTemplate" x:DataType="entities:StickerCardInfo">
+            <Border Width="112" Margin="0,0,8,8" Padding="8"
+                    CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                <StackPanel Spacing="8">
+                    <Border Width="68" Height="68" CornerRadius="10"
+                            HorizontalAlignment="Center"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <Grid>
+                            <Image Source="{Binding IconUrl, Converter={StaticResource StringToImageSource}}"
+                                   Stretch="Uniform"
+                                   Margin="6"
+                                   Visibility="{Binding IconUrl, Converter={StaticResource NullToVis}}" />
+                            <FontIcon Glyph="&#xE91B;" FontSize="28" Opacity="0.28"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding IconUrl, Converter={StaticResource InverseNullToVis}}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                               TextWrapping="WrapWholeWords" TextAlignment="Center"
+                               MaxLines="4" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Border>
+            </DataTemplate>
+
+            <DataTemplate x:Key="InventoryOriginCardTemplate" x:DataType="entities:ItemOriginInfo">
+            <Border Width="132" Margin="0,0,8,8" Padding="8"
+                    CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                <StackPanel Spacing="8">
+                    <Border Width="68" Height="68" CornerRadius="10"
+                            HorizontalAlignment="Center"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <Grid>
+                            <Image Source="{Binding IconUrl, Converter={StaticResource StringToImageSource}}"
+                                   Stretch="Uniform"
+                                   Margin="6"
+                                   Visibility="{Binding IconUrl, Converter={StaticResource NullToVis}}" />
+                            <FontIcon Glyph="&#xE91B;" FontSize="28" Opacity="0.28"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding IconUrl, Converter={StaticResource InverseNullToVis}}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                               TextWrapping="WrapWholeWords" TextAlignment="Center"
+                               MaxLines="4" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding TypeDisplayName}" FontSize="10" Opacity="0.58"
+                               TextAlignment="Center" />
+                </StackPanel>
+            </Border>
+            </DataTemplate>
+
+            <DataTemplate x:Key="InventoryContainerDropTemplate" x:DataType="entities:ContainerDropInfo">
+            <Border Width="164" Margin="0,0,8,8" Padding="8"
+                    CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                <StackPanel Spacing="8">
+                    <Border Width="68" Height="68" CornerRadius="10"
+                            HorizontalAlignment="Center"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <Grid>
+                            <Image Source="{Binding IconUrl, Converter={StaticResource StringToImageSource}}"
+                                   Stretch="Uniform"
+                                   Margin="6"
+                                   Visibility="{Binding IconUrl, Converter={StaticResource NullToVis}}" />
+                            <FontIcon Glyph="&#xE91B;" FontSize="28" Opacity="0.28"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding IconUrl, Converter={StaticResource InverseNullToVis}}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                               TextWrapping="WrapWholeWords" TextAlignment="Center"
+                               MaxLines="4" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Subtitle}" FontSize="10" Opacity="0.58"
+                               TextAlignment="Center"
+                               Visibility="{Binding Subtitle, Converter={StaticResource NullToVis}}" />
+                </StackPanel>
+            </Border>
+            </DataTemplate>
+        </Grid.Resources>
+
+        <Border x:Name="PreviewRoot"
+                Width="400"
+                MinHeight="470"
+                Style="{StaticResource InventoryPreviewPrimaryCardStyle}">
+            <ScrollViewer x:Name="PreviewScrollViewer"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="PreviewContent" Spacing="12">
+                    <Border Height="286" CornerRadius="12"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <Image Source="{Binding Item.LargeIconUrl, Converter={StaticResource StringToImageSource}}"
+                               Stretch="Uniform"
+                               Margin="0" />
+                    </Border>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding Item.Name}" FontWeight="Bold" FontSize="18"
+                                       TextWrapping="WrapWholeWords" MaxLines="3" />
+                            <TextBlock Text="{Binding Item.CustomName}" FontStyle="Italic" FontSize="13"
+                                       Opacity="0.72"
+                                       Visibility="{Binding Item.HasCustomName, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Style="{StaticResource InventoryPreviewChipStyle}">
+                                <TextBlock Text="{Binding Item.RarityDisplayName}" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{Binding Item.RarityColor, Converter={StaticResource HexToBrush}}" />
+                            </Border>
+                            <Border Style="{StaticResource InventoryPreviewChipStyle}"
+                                    Visibility="{Binding Item.HasSpecialQuality, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding Item.QualityDisplayName}" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{Binding Item.QualityColor, Converter={StaticResource HexToBrush}}" />
+                            </Border>
+                            <Border Style="{StaticResource InventoryPreviewChipStyle}"
+                                    Visibility="{Binding Item.HasExterior, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding Item.ExteriorDisplayName}" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{Binding Item.ExteriorColor, Converter={StaticResource HexToBrush}}" />
+                            </Border>
+                            <Border Style="{StaticResource InventoryPreviewAccentChipStyle}"
+                                    BorderBrush="{Binding Item.OriginBadgeColor, Converter={StaticResource HexToBrush}}"
+                                    Visibility="{Binding Item.HasOriginBadge, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding Item.OriginDisplayName}" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{Binding Item.OriginBadgeColor, Converter={StaticResource HexToBrush}}" />
+                            </Border>
+                        </StackPanel>
+
+                        <Border CornerRadius="12" Padding="12"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                Visibility="{Binding Item.HasSkin, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Item Details" Style="{StaticResource InventoryPreviewCaptionStyle}" />
+                                <TextBlock Text="{Binding Item.SkinDisplayName}" FontSize="12" Opacity="0.72"
+                                           TextWrapping="WrapWholeWords"
+                                           Visibility="{Binding Item.HasSkin, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock FontSize="13"
+                                           Visibility="{Binding Item.HasFloat, Converter={StaticResource BoolToVis}}">
+                                    <Run Text="Float " FontWeight="SemiBold" />
+                                    <Run Text="{Binding Item.FloatDisplayName}" />
+                                </TextBlock>
+                                <TextBlock FontSize="13"
+                                           Visibility="{Binding Item.HasPattern, Converter={StaticResource BoolToVis}}">
+                                    <Run Text="Pattern " FontWeight="SemiBold" />
+                                    <Run Text="{Binding Item.PatternDisplayName}" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Status" Style="{StaticResource InventoryPreviewCaptionStyle}" />
+                            <TextBlock FontSize="12" Opacity="0.72" Text="{Binding Item.TradableStatusText}" />
+                            <TextBlock FontSize="12" Opacity="0.72" Text="{Binding Item.MarketableStatusText}" />
+                            <TextBlock FontSize="13" Foreground="#FF9800"
+                                       Visibility="{Binding Item.HasTradeLockRemaining, Converter={StaticResource BoolToVis}}">
+                                <Run Text="&#x1F512; Trade Lock " FontWeight="SemiBold" />
+                                <Run Text="{Binding Item.TradeLockRemainingText}" />
+                            </TextBlock>
+                            <TextBlock FontSize="12" Opacity="0.68"
+                                       Visibility="{Binding Item.IsTemporaryTradeLock, Converter={StaticResource BoolToVis}}">
+                                <Run Text="Unlocks at " FontWeight="SemiBold" />
+                                <Run Text="{Binding Item.TradeLockExpiresText}" />
+                            </TextBlock>
+                            <TextBlock FontSize="13" Foreground="#9C27B0"
+                                       Visibility="{Binding Item.IsGraffiti, Converter={StaticResource BoolToVis}}">
+                                <Run Text="Sprays " FontWeight="SemiBold" />
+                                <Run Text="{Binding Item.GraffitiUsesText}" />
+                            </TextBlock>
+                            <TextBlock FontSize="13"
+                                       Visibility="{Binding Item.HasCasketItems, Converter={StaticResource BoolToVis}}">
+                                <Run Text="Storage " FontWeight="SemiBold" />
+                                <Run Text="{Binding Item.CasketItemCountDisplay}" />
+                            </TextBlock>
+                        </StackPanel>
+
+                        <StackPanel Spacing="3"
+                                    Visibility="{Binding Item.HasStickers, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Attached summary" Style="{StaticResource InventoryPreviewCaptionStyle}" />
+                            <TextBlock Text="{Binding Item.StickersSummary}" FontSize="12"
+                                       TextWrapping="WrapWholeWords" Opacity="0.78" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="3"
+                                    Visibility="{Binding Item.HasKeychain, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Keychain" Style="{StaticResource InventoryPreviewCaptionStyle}" />
+                            <TextBlock Text="{Binding Item.KeychainSummary}" FontSize="12" Opacity="0.78"
+                                       TextWrapping="WrapWholeWords" />
+                        </StackPanel>
+
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="2"
+                                        Visibility="{Binding Item.HasPrice, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Market price" Style="{StaticResource InventoryPreviewCaptionStyle}" />
+                                <TextBlock Text="{Binding Item.PriceDisplayText}" FontSize="18" FontWeight="Bold" />
+                                <TextBlock Text="{Binding Item.PriceUpdatedAtText}" FontSize="11" Opacity="0.62"
+                                           TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border x:Name="CollectionRoot"
+                MinWidth="156"
+                Visibility="Collapsed"
+                Style="{StaticResource InventoryPreviewSideCardStyle}">
+            <StackPanel Spacing="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="CollectionTitleText" Grid.Column="0" FontSize="14" FontWeight="SemiBold" />
+                    <Border Grid.Column="1" Style="{StaticResource InventoryPreviewChipStyle}">
+                        <TextBlock x:Name="CollectionCountText" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                </Grid>
+                <ScrollViewer x:Name="CollectionScrollViewer"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto"
+                              MaxHeight="320">
+                    <ItemsControl x:Name="CollectionItemsControl"
+                                  HorizontalAlignment="Left">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapGrid Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -134,6 +134,7 @@ public sealed class SteamConnectionService : IDisposable
     public void Dispose()
     {
         _callbackCts?.Cancel();
+        _callbackTask?.Wait(TimeSpan.FromSeconds(2));
         _callbackCts?.Dispose();
         _client.Disconnect();
     }

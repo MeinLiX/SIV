@@ -49,6 +49,9 @@ public sealed partial class InventoryHoverWindow : Window, INotifyPropertyChange
         ConfigureWindowChrome();
         ConfigureMode();
 
+        RootHitTarget.RequestedTheme = App.CurrentTheme;
+        App.ThemeChanged += theme => RootHitTarget.RequestedTheme = theme;
+
         RootHitTarget.PointerEntered += (_, _) => HoverStateChanged?.Invoke(this, true);
         RootHitTarget.PointerExited += (_, _) => HoverStateChanged?.Invoke(this, false);
 

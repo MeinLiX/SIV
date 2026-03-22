@@ -16,9 +16,16 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        NativeWindowMethods.ConfigurePresenter(this, hasTitleBar: true);
+        NativeWindowMethods.ConfigurePresenter(this);
         NativeWindowMethods.SetWindowSize(this, 1100, 750);
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
+
+        Closed += MainWindow_Closed;
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        App.Shutdown();
     }
 
     public void Initialize(MainViewModel viewModel)
@@ -34,8 +41,7 @@ public sealed partial class MainWindow : Window
         {
             if (e.PropertyName == nameof(MainViewModel.CurrentView))
                 NavigateToView(_viewModel.CurrentView);
-            else if (e.PropertyName is nameof(MainViewModel.CanGoBack)
-                     or nameof(MainViewModel.IsLoggedIn)
+            else if (e.PropertyName is nameof(MainViewModel.IsLoggedIn)
                      or nameof(MainViewModel.PlayerName)
                      or nameof(MainViewModel.PlayerAvatarUrl)
                      or nameof(MainViewModel.UpdateAvailable)
@@ -73,9 +79,7 @@ public sealed partial class MainWindow : Window
         DispatcherQueue.TryEnqueue(() =>
         {
             var loggedIn = _viewModel?.IsLoggedIn ?? false;
-            var canGoBack = _viewModel?.CanGoBack ?? false;
 
-            BackButton.Visibility = canGoBack ? Visibility.Visible : Visibility.Collapsed;
             ProfileButton.Visibility = loggedIn ? Visibility.Visible : Visibility.Collapsed;
 
             var current = _viewModel?.CurrentVersion ?? "";
@@ -109,8 +113,8 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    private void BackButton_Click(object sender, RoutedEventArgs e)
-        => _viewModel?.GoBackCommand.Execute(null);
+    private void ChangeGameButton_Click(object sender, RoutedEventArgs e)
+        => _viewModel?.NavigateToGameSelectorCommand.Execute(null);
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
         => _viewModel?.NavigateToSettingsCommand.Execute(null);
@@ -120,4 +124,7 @@ public sealed partial class MainWindow : Window
 
     private void LogoutButton_Click(object sender, RoutedEventArgs e)
         => _viewModel?.LogoutCommand.Execute(null);
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+        => Close();
 }

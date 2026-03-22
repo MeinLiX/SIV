@@ -35,17 +35,39 @@ public partial class App : Microsoft.UI.Xaml.Application
         MainWindow.Activate();
     }
 
+    public static void Shutdown()
+    {
+        try
+        {
+            Services?.Dispose();
+            Log.CloseAndFlush();
+        }
+        finally
+        {
+            Environment.Exit(0);
+        }
+    }
+
+    public static ElementTheme CurrentTheme { get; private set; } = ElementTheme.Default;
+    public static event Action<ElementTheme>? ThemeChanged;
+
     public static void ApplyTheme(AppTheme theme)
     {
+        var elementTheme = theme switch
+        {
+            AppTheme.Dark => ElementTheme.Dark,
+            AppTheme.Light => ElementTheme.Light,
+            _ => ElementTheme.Default
+        };
+
+        CurrentTheme = elementTheme;
+
         if (MainWindow.Content is FrameworkElement root)
         {
-            root.RequestedTheme = theme switch
-            {
-                AppTheme.Dark => ElementTheme.Dark,
-                AppTheme.Light => ElementTheme.Light,
-                _ => ElementTheme.Default
-            };
+            root.RequestedTheme = elementTheme;
         }
+
+        ThemeChanged?.Invoke(elementTheme);
     }
 
     private static void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)

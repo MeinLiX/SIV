@@ -6,7 +6,7 @@
     xmlns:entities="using:SIV.Domain.Entities"
     xmlns:converters="using:SIV.App.Converters">
 
-    <Grid x:Name="RootHitTarget" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+    <Grid x:Name="RootHitTarget" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
         <Grid.Resources>
             <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
             <converters:NullToVisibilityConverter x:Key="NullToVis" />

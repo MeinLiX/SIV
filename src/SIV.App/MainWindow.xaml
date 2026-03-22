@@ -16,12 +16,10 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <Button x:Name="BackButton" Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
-                        Visibility="Collapsed" Click="BackButton_Click"
-                        Width="36" Height="36" Padding="0" />
                 <TextBlock x:Name="AppTitleText" Text="SIV" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <TextBlock x:Name="VersionText" Text="" FontSize="11" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -45,10 +43,17 @@
 
             <Button x:Name="ProfileButton" Grid.Column="3" Padding="0" BorderThickness="0"
                     Background="Transparent" Visibility="Collapsed"
-                    VerticalAlignment="Center" Margin="0,0,48,0"
+                    VerticalAlignment="Center" Margin="0,0,8,0"
                     Height="32" CornerRadius="4">
                 <Button.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuFlyoutItem x:Name="ChangeGameMenuItem" Text="Change game"
+                                        Click="ChangeGameButton_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE7FC;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator />
                         <MenuFlyoutItem x:Name="SettingsMenuItem" Text="Settings"
                                         Click="SettingsButton_Click">
                             <MenuFlyoutItem.Icon>
@@ -76,6 +81,18 @@
                         </StackPanel>
                     </Border>
                 </StackPanel>
+            </Button>
+
+            <Button x:Name="CloseButton" Grid.Column="4"
+                    Width="36" Height="36" Padding="0"
+                    Click="CloseButton_Click"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    IsTabStop="False"
+                    AllowFocusOnInteraction="False"
+                    ToolTipService.ToolTip="Close">
+                <FontIcon Glyph="&#xE711;" />
             </Button>
         </Grid>
 

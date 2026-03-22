@@ -128,6 +128,12 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void NavigateToGameSelector()
+    {
+        ShowGameSelector();
+    }
+
+    [RelayCommand]
     private void NavigateToSettings()
     {
         var vm = new SettingsViewModel(_settingsService);

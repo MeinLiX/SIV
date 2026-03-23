@@ -33,5 +33,4 @@ If unsure — pick **Self-Contained**.
 
 If you'd like to send a thank-you:
 
-- **[Send a Trade Offer (web)](https://steamcommunity.com/tradeoffer/new/?partner=220978433&token=hU4Tsyg6)**
-- **[Open in Steam app](steam://openurl/https://steamcommunity.com/tradeoffer/new/?partner=220978433&token=hU4Tsyg6)**
+**[Send a Trade Offer](https://steamcommunity.com/tradeoffer/new/?partner=220978433&token=hU4Tsyg6)**

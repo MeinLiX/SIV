@@ -504,6 +504,7 @@ public sealed class CS2GCService : IGCService
         int casketItemCount = 0;
         bool isCasket = false;
         bool isTemporaryTradeLock = false;
+        bool hadTradeLockAttribute = false;
         DateTimeOffset? tradeLockExpiresAt = null;
         int? graffitiUsesRemaining = null;
         var stickerSlots = CreateStickerSlots();
@@ -552,6 +553,7 @@ public sealed class CS2GCService : IGCService
                     break;
                 case 75:
                     var tradableAfterSec = (long)(uint)ReadAttributeInt32(attr);
+                    hadTradeLockAttribute = true;
                     if (tradableAfterSec > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                     {
                         isTemporaryTradeLock = true;
@@ -613,7 +615,7 @@ public sealed class CS2GCService : IGCService
             Marketable = false,
             IsTemporaryTradeLock = isTemporaryTradeLock,
             TradeLockExpiresAt = tradeLockExpiresAt,
-            CanFetchMarketPrice = isTemporaryTradeLock,
+            CanFetchMarketPrice = hadTradeLockAttribute,
             IsGraffiti = defIndex is 1348 or 1349,
             GraffitiUsesRemaining = graffitiUsesRemaining,
             RarityColor = _itemDefs?.GetRarityColor(proto.Rarity) ?? string.Empty,
@@ -673,11 +675,15 @@ public sealed class CS2GCService : IGCService
 
             var enrichedIcons = 0;
             var enrichedFlags = 0;
+            var unmatchedCount = 0;
             foreach (var item in items)
             {
                 var data = ResolveWebApiData(item, byAssetId);
                 if (data is null)
+                {
+                    unmatchedCount++;
                     continue;
+                }
 
                 if (!string.IsNullOrEmpty(data.IconUrl))
                 {
@@ -692,8 +698,8 @@ public sealed class CS2GCService : IGCService
             }
 
             _logger.LogInformation(
-                "Enriched {Icons} icons and {Flags}/{Total} tradable/marketable flags from Steam web API",
-                enrichedIcons, enrichedFlags, items.Count);
+                "Enriched {Icons} icons and {Flags}/{Total} tradable/marketable flags from Steam web API ({Unmatched} unmatched)",
+                enrichedIcons, enrichedFlags, items.Count, unmatchedCount);
 
             var unmatched = items.Where(i => string.IsNullOrEmpty(i.IconUrl) || IsLikelyVpkPath(i.IconUrl)).ToList();
             if (unmatched.Count > 0)

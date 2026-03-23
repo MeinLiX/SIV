@@ -208,28 +208,32 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         return _schema.Value.Items.GetValueOrDefault((int)defIndex);
     }
 
-    public string? GetItemIconPath(uint defIndex, int paintIndex, int stickerKitId = 0, int keychainId = 0)
+    public string? GetItemIconPath(uint defIndex, int paintIndex, int stickerKitId = 0, int keychainId = 0, int graffitiTintId = 0)
     {
         if (defIndex == 1355 && keychainId > 0)
             return GetKeychainIconUrl(keychainId);
 
         if (defIndex is 1348 or 1349 && stickerKitId > 0)
-            return GetGraffitiIconUrl(defIndex, stickerKitId);
+            return GetGraffitiIconUrl(defIndex, stickerKitId, graffitiTintId);
 
         if (paintIndex == 0 && stickerKitId > 0)
             return GetStickerIconUrl(stickerKitId);
 
-        var mhn = GetMarketHashName(defIndex, paintIndex, 0.15f, stickerKitId, keychainId);
+        var mhn = GetMarketHashName(defIndex, paintIndex, 0.15f, stickerKitId, keychainId, graffitiTintId);
         if (!string.IsNullOrEmpty(mhn) && _iconHashCache.TryGetValue(mhn, out var hash))
             return hash;
 
-        if (_schema.Value.ItemImagePaths.TryGetValue((int)defIndex, out var path))
+        var itemName = GetItemName(defIndex);
+        if (!string.IsNullOrEmpty(itemName) && itemName != mhn && _iconHashCache.TryGetValue(itemName, out var nameHash))
+            return nameHash;
+
+        if (_schema.Value.ItemImagePaths.TryGetValue((int)defIndex, out var path) && !IsVpkPath(path))
             return path;
 
         return null;
     }
 
-    public string? GetMarketHashName(uint defIndex, int paintIndex, float paintWear, int stickerKitId = 0, int keychainId = 0)
+    public string? GetMarketHashName(uint defIndex, int paintIndex, float paintWear, int stickerKitId = 0, int keychainId = 0, int graffitiTintId = 0)
     {
         if (SpecialItems.TryGetValue(defIndex, out var special))
             return special;
@@ -251,9 +255,19 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         if (paintIndex == 0 && stickerKitId > 0)
         {
             var kitName = GetStickerKitName(stickerKitId);
-            return string.IsNullOrWhiteSpace(kitName)
-                ? $"{prefix}{weaponName}"
-                : $"{prefix}{weaponName} | {kitName}";
+            if (string.IsNullOrWhiteSpace(kitName))
+                return $"{prefix}{weaponName}";
+
+            var baseMhn = $"{prefix}{weaponName} | {kitName}";
+
+            if (defIndex is 1348 or 1349 && graffitiTintId > 0)
+            {
+                var tintName = GetGraffitiTintName(graffitiTintId);
+                if (!string.IsNullOrWhiteSpace(tintName))
+                    return $"{baseMhn} ({tintName})";
+            }
+
+            return baseMhn;
         }
 
         if (paintIndex == 0)
@@ -296,6 +310,14 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         return _schema.Value.Keychains.GetValueOrDefault(keychainId);
     }
 
+    public string? GetGraffitiTintName(int tintId)
+    {
+        if (tintId <= 0)
+            return null;
+
+        return _schema.Value.GraffitiTints.GetValueOrDefault(tintId);
+    }
+
     public string? GetRarityColor(int rarity)
     {
         if (RarityColorKeys.TryGetValue(rarity, out var colorKey))
@@ -334,7 +356,7 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         return null;
     }
 
-    public string? GetGraffitiIconUrl(uint defIndex, int stickerKitId)
+    public string? GetGraffitiIconUrl(uint defIndex, int stickerKitId, int graffitiTintId = 0)
     {
         if (stickerKitId <= 0)
             return null;
@@ -346,9 +368,23 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         var prefix = defIndex == 1348 ? "Sealed Graffiti" : "Graffiti";
         var baseMhn = $"{prefix} | {kitName}";
 
+        // Try exact match with tint color first (e.g., "Sealed Graffiti | Sorry (Shark White)")
+        if (graffitiTintId > 0)
+        {
+            var tintName = GetGraffitiTintName(graffitiTintId);
+            if (!string.IsNullOrWhiteSpace(tintName))
+            {
+                var tintedMhn = $"{baseMhn} ({tintName})";
+                if (_iconHashCache.TryGetValue(tintedMhn, out var tintedHash))
+                    return tintedHash;
+            }
+        }
+
+        // Exact match without tint (works for unique/tournament graffiti)
         if (_iconHashCache.TryGetValue(baseMhn, out var hash))
             return hash;
 
+        // Fuzzy prefix match: any tint variant of the same graffiti
         foreach (var (key, value) in _iconHashCache)
         {
             if (key.StartsWith(baseMhn, StringComparison.OrdinalIgnoreCase)
@@ -413,6 +449,13 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
 
         return _iconHashCache.GetValueOrDefault(marketHashName);
     }
+
+    private static bool IsVpkPath(string value) =>
+        value.StartsWith("econ/", StringComparison.OrdinalIgnoreCase)
+        || (!value.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            && value.Contains('/')
+            && (value.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                || value.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)));
 
     private static bool IsKnife(uint defIndex) =>
         defIndex is 42 or 59 or (>= 500 and <= 526);

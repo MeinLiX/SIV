@@ -5,12 +5,13 @@ namespace SIV.Application.Interfaces;
 public interface IItemDefinitionProvider
 {
     uint AppId { get; }
-    string? GetMarketHashName(uint defIndex, int paintIndex, float paintWear, int stickerKitId = 0, int keychainId = 0);
+    string? GetMarketHashName(uint defIndex, int paintIndex, float paintWear, int stickerKitId = 0, int keychainId = 0, int graffitiTintId = 0);
     string? GetItemName(uint defIndex);
-    string? GetItemIconPath(uint defIndex, int paintIndex, int stickerKitId = 0, int keychainId = 0);
+    string? GetItemIconPath(uint defIndex, int paintIndex, int stickerKitId = 0, int keychainId = 0, int graffitiTintId = 0);
     string? GetPaintKitName(int paintIndex);
     string? GetStickerKitName(int stickerKitId);
     string? GetKeychainName(int keychainId);
+    string? GetGraffitiTintName(int tintId);
     string? GetRarityColor(int rarity);
     string? GetQualityColor(int quality);
     string? GetStickerIconUrl(int stickerKitId);

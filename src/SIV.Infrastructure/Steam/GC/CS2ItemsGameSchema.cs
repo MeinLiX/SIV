@@ -23,6 +23,7 @@ internal sealed class CS2ItemsGameSchema
     public Dictionary<int, string> RevolvingLootLists { get; } = [];
     public Dictionary<int, CaseItemInfo> CaseItems { get; } = [];
     public Dictionary<string, ItemSetEntry> ItemSets { get; } = [];
+    public Dictionary<int, string> GraffitiTints { get; } = [];
 
     private Dictionary<int, string> PaintKitLocKeys { get; } = [];
     private Dictionary<int, string> StickerKitLocKeys { get; } = [];
@@ -86,6 +87,12 @@ internal sealed class CS2ItemsGameSchema
 
             if (stack.Count < 2 || !string.Equals(stack[0], "items_game", StringComparison.Ordinal))
             {
+                continue;
+            }
+
+            if (stack.Count == 3 && stack[1] == "graffiti_tints" && key == "id" && int.TryParse(value, out var tintId))
+            {
+                schema.GraffitiTints.TryAdd(tintId, HumanizeTintName(stack[2]));
                 continue;
             }
 
@@ -508,6 +515,13 @@ internal sealed class CS2ItemsGameSchema
             if (localization.TryGetValue(key, out var name) && !string.IsNullOrWhiteSpace(name))
                 schema.Items[id] = name;
         }
+
+        foreach (var (tintId, _) in schema.GraffitiTints)
+        {
+            var locKey = $"Attrib_SprayTintValue_{tintId}";
+            if (localization.TryGetValue(locKey, out var name) && !string.IsNullOrWhiteSpace(name))
+                schema.GraffitiTints[tintId] = name;
+        }
     }
 
     private static string SelectBetterName(string? existing, string candidate)
@@ -524,6 +538,14 @@ internal sealed class CS2ItemsGameSchema
         }
 
         return existing;
+    }
+
+    private static string HumanizeTintName(string internalName)
+    {
+        var segments = internalName.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        for (var i = 0; i < segments.Length; i++)
+            segments[i] = char.ToUpperInvariant(segments[i][0]) + segments[i][1..].ToLowerInvariant();
+        return string.Join(' ', segments);
     }
 
     private static string HumanizeSchemaName(string value)

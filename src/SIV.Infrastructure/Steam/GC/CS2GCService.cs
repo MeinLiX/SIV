@@ -507,6 +507,7 @@ public sealed class CS2GCService : IGCService
         bool hadTradeLockAttribute = false;
         DateTimeOffset? tradeLockExpiresAt = null;
         int? graffitiUsesRemaining = null;
+        int graffitiTintId = 0;
         var stickerSlots = CreateStickerSlots();
         var keychain = new KeychainBuilder();
 
@@ -563,6 +564,9 @@ public sealed class CS2GCService : IGCService
                 case 232:
                     graffitiUsesRemaining = ReadAttributeInt32(attr);
                     break;
+                case 233:
+                    graffitiTintId = ReadAttributeInt32(attr);
+                    break;
             }
         }
 
@@ -571,10 +575,11 @@ public sealed class CS2GCService : IGCService
         string skinName;
 
         var stickerKitId = stickerSlots[0].StickerId;
+        var itemStickerKitId = IsStickerTypeItem(defIndex) ? stickerKitId : 0;
         if (defIndex == 1355 && keychain.KeychainId > 0)
             skinName = _itemDefs?.GetKeychainName(keychain.KeychainId) ?? $"#{keychain.KeychainId}";
-        else if (paintIndex == 0 && stickerKitId > 0)
-            skinName = _itemDefs?.GetStickerKitName(stickerKitId) ?? $"#{stickerKitId}";
+        else if (paintIndex == 0 && itemStickerKitId > 0)
+            skinName = _itemDefs?.GetStickerKitName(itemStickerKitId) ?? $"#{itemStickerKitId}";
         else
             skinName = _itemDefs?.GetPaintKitName(paintIndex) ?? string.Empty;
 
@@ -582,9 +587,9 @@ public sealed class CS2GCService : IGCService
             "Item {Id}: DefIndex={DefIndex}, PaintIndex={PaintIndex}, StickerKit={StickerKit}, KeychainId={KeychainId}, SkinName='{SkinName}', BaseName='{BaseName}'",
             proto.Id, defIndex, paintIndex, stickerKitId, keychain.KeychainId, skinName, baseName);
 
-        var marketHashName = _itemDefs?.GetMarketHashName(defIndex, paintIndex, paintWear, stickerKitId, keychain.KeychainId) ?? string.Empty;
+        var marketHashName = _itemDefs?.GetMarketHashName(defIndex, paintIndex, paintWear, itemStickerKitId, keychain.KeychainId, graffitiTintId) ?? string.Empty;
         var itemName = BuildDisplayName(baseName, skinName);
-        var resolvedStickers = ResolveStickers(stickerSlots);
+        var resolvedStickers = CanHaveStickers(defIndex, paintIndex) ? ResolveStickers(stickerSlots) : [];
         var resolvedKeychain = ResolveKeychain(keychain);
 
         return new InventoryItem
@@ -607,7 +612,7 @@ public sealed class CS2GCService : IGCService
             Keychain = resolvedKeychain,
             IsCasket = isCasket,
             CasketItemCount = casketItemCount,
-            IconUrl = _itemDefs?.GetItemIconPath(defIndex, paintIndex, stickerKitId, keychain.KeychainId) ?? string.Empty,
+            IconUrl = _itemDefs?.GetItemIconPath(defIndex, paintIndex, itemStickerKitId, keychain.KeychainId, graffitiTintId) ?? string.Empty,
             Name = itemName,
             GroupKey = BuildGroupKey(defIndex, paintIndex, paintWear, isCasket, stickerKitId, keychain.KeychainId),
             MarketHashName = string.IsNullOrWhiteSpace(marketHashName) ? BuildDisplayName(baseName, skinName) : marketHashName,
@@ -618,6 +623,7 @@ public sealed class CS2GCService : IGCService
             CanFetchMarketPrice = hadTradeLockAttribute,
             IsGraffiti = defIndex is 1348 or 1349,
             GraffitiUsesRemaining = graffitiUsesRemaining,
+            GraffitiTintId = graffitiTintId,
             RarityColor = _itemDefs?.GetRarityColor(proto.Rarity) ?? string.Empty,
             QualityColor = _itemDefs?.GetQualityColor(proto.Quality) ?? string.Empty,
             Origin = (int)proto.Origin
@@ -708,6 +714,8 @@ public sealed class CS2GCService : IGCService
                     string.Join(", ", unmatched.Select(i => $"{i.Name} (MHN={i.MarketHashName})")));
                 await FetchMissingIconsFromMarketAsync(unmatched);
             }
+
+            ShareIconsByDefIndex(items);
         }
         catch (Exception ex)
         {
@@ -1023,18 +1031,41 @@ public sealed class CS2GCService : IGCService
 
         foreach (var item in items)
         {
-            if (!string.IsNullOrEmpty(item.IconUrl) || string.IsNullOrWhiteSpace(item.MarketHashName))
+            if ((!string.IsNullOrEmpty(item.IconUrl) && !IsLikelyVpkPath(item.IconUrl))
+                || string.IsNullOrWhiteSpace(item.MarketHashName))
                 continue;
 
-            var resolved = _itemDefs?.ResolveIconHash(item.MarketHashName);
+            var resolved = _itemDefs?.ResolveIconHash(item.MarketHashName)
+                        ?? (!string.IsNullOrEmpty(item.BaseName) && item.BaseName != item.MarketHashName
+                            ? _itemDefs?.ResolveIconHash(item.BaseName)
+                            : null);
             if (!string.IsNullOrEmpty(resolved))
                 item.IconUrl = resolved;
         }
 
-        var stillMissing = items.Where(i => string.IsNullOrEmpty(i.IconUrl)).ToList();
+        var stillMissing = items.Where(i => string.IsNullOrEmpty(i.IconUrl) || IsLikelyVpkPath(i.IconUrl)).ToList();
         if (stillMissing.Count > 0)
             _logger.LogWarning("Items still without icon after market fallback: {Items}",
-                string.Join(", ", stillMissing.Select(i => i.Name)));
+                string.Join(", ", stillMissing.Select(i => $"{i.Name} (MHN={i.MarketHashName})")));
+    }
+
+    private static void ShareIconsByDefIndex(List<InventoryItem> items)
+    {
+        var iconByDefIndex = new Dictionary<uint, string>();
+        foreach (var item in items)
+        {
+            if (!string.IsNullOrEmpty(item.IconUrl) && !IsLikelyVpkPath(item.IconUrl))
+                iconByDefIndex.TryAdd(item.DefIndex, item.IconUrl);
+        }
+
+        foreach (var item in items)
+        {
+            if ((string.IsNullOrEmpty(item.IconUrl) || IsLikelyVpkPath(item.IconUrl))
+                && iconByDefIndex.TryGetValue(item.DefIndex, out var sharedIcon))
+            {
+                item.IconUrl = sharedIcon;
+            }
+        }
     }
 
     private static WebApiItemData MergeWebApiItemData(WebApiItemData existing, WebApiItemData candidate)
@@ -1530,6 +1561,14 @@ public sealed class CS2GCService : IGCService
         public int HighlightId { get; set; }
         public int StickerId { get; set; }
     }
+
+    private static bool IsStickerTypeItem(uint defIndex) =>
+        defIndex is 1209 or 1348 or 1349 or 4609;
+
+    private static bool CanHaveStickers(uint defIndex, int paintIndex) =>
+        IsStickerTypeItem(defIndex)
+        || paintIndex > 0
+        || defIndex is (>= 1 and <= 64) or (>= 500 and <= 526);
 
     private static bool IsLikelyVpkPath(string url) =>
         url.StartsWith("econ/", StringComparison.OrdinalIgnoreCase)

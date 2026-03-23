@@ -35,6 +35,7 @@ public class InventoryItem
     public DateTimeOffset? TradeLockExpiresAt { get; set; }
     public bool IsGraffiti { get; set; }
     public int? GraffitiUsesRemaining { get; set; }
+    public int GraffitiTintId { get; set; }
     public string RarityColor { get; set; } = string.Empty;
     public string QualityColor { get; set; } = string.Empty;
     public int Origin { get; set; } = -1;

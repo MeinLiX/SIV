@@ -137,6 +137,7 @@ public partial class MainViewModel : ViewModelBase
     private void NavigateToSettings()
     {
         var vm = new SettingsViewModel(_settingsService, _navigation);
+        vm.SetUpdateInfo(UpdateAvailable, UpdateVersion);
         _navigation.NavigateTo(vm);
     }
 

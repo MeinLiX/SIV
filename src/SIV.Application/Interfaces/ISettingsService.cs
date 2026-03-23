@@ -13,6 +13,7 @@ public interface ISettingsService
     string Cs2GamePath { get; set; }
     string UpdateRepoUrl { get; set; }
     OpenLinkIn OpenLinkIn { get; set; }
+    bool ShowUpdateButton { get; set; }
     Task SaveAsync();
     Task LoadAsync();
 }

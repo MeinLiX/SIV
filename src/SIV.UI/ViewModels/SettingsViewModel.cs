@@ -34,10 +34,22 @@ public partial class SettingsViewModel : ViewModelBase
     private int _selectedOpenLinkInIndex;
 
     [ObservableProperty]
+    private bool _showUpdateButton;
+
+    [ObservableProperty]
+    private string _updateStatusText = "Checking...";
+
+    [ObservableProperty]
     private string _cs2GamePath = string.Empty;
 
     [ObservableProperty]
     private string _cs2PathStatus = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasCs2PathStatus;
+
+    [ObservableProperty]
+    private int _cs2PathSeverity;
 
     [ObservableProperty]
     private bool _hasChanges;
@@ -45,6 +57,25 @@ public partial class SettingsViewModel : ViewModelBase
     public string CurrentVersion { get; } = Assembly.GetEntryAssembly()
         ?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
         ?.InformationalVersion?.Split('+')[0] ?? "0.0.0";
+
+    public string VersionDescription => $"Version {CurrentVersion}";
+
+    public string GitHubUrl => _settings.UpdateRepoUrl;
+
+    /// <summary>
+    /// Called by the Page after creation to inject live update state from MainViewModel.
+    /// </summary>
+    public void SetUpdateInfo(bool updateAvailable, string? newVersion)
+    {
+        if (updateAvailable && !string.IsNullOrEmpty(newVersion))
+            UpdateStatusText = $"Update available: v{newVersion}";
+        else
+            UpdateStatusText = "You are up to date";
+        OnPropertyChanged(nameof(UpdateInfoSeverity));
+    }
+
+    public int UpdateInfoSeverity =>
+        UpdateStatusText.StartsWith("Update available", StringComparison.Ordinal) ? 0 : 1;
 
     public override string Title => "Settings";
 
@@ -63,6 +94,7 @@ public partial class SettingsViewModel : ViewModelBase
         PriceRetryDelaySeconds = _settings.PriceRetryDelaySeconds;
         SelectedThemeIndex = (int)_settings.Theme;
         EnableIconCache = _settings.EnableIconCache;
+        ShowUpdateButton = _settings.ShowUpdateButton;
         SelectedOpenLinkInIndex = (int)_settings.OpenLinkIn;
         Cs2GamePath = _settings.Cs2GamePath;
         ValidateCs2Path();
@@ -75,6 +107,7 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnPriceRetryDelaySecondsChanged(int value) => HasChanges = true;
     partial void OnSelectedThemeIndexChanged(int value) => HasChanges = true;
     partial void OnEnableIconCacheChanged(bool value) => HasChanges = true;
+    partial void OnShowUpdateButtonChanged(bool value) => HasChanges = true;
     partial void OnSelectedOpenLinkInIndexChanged(int value) => HasChanges = true;
     partial void OnCs2GamePathChanged(string value)
     {
@@ -87,6 +120,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(Cs2GamePath))
         {
             Cs2PathStatus = string.Empty;
+            HasCs2PathStatus = false;
             return;
         }
 
@@ -94,14 +128,23 @@ public partial class SettingsViewModel : ViewModelBase
         if (Directory.Exists(csgoDir))
         {
             var locFile = Path.Combine(csgoDir, "resource", "csgo_english.txt");
-            Cs2PathStatus = File.Exists(locFile)
-                ? "Valid CS2 path (localization found)"
-                : "Valid CS2 path (localization file not found)";
+            if (File.Exists(locFile))
+            {
+                Cs2PathStatus = "Valid CS2 path (localization found)";
+                Cs2PathSeverity = 1; // Success
+            }
+            else
+            {
+                Cs2PathStatus = "Valid CS2 path (localization file not found)";
+                Cs2PathSeverity = 2; // Warning
+            }
         }
         else
         {
             Cs2PathStatus = "Invalid: 'game/csgo' directory not found";
+            Cs2PathSeverity = 3; // Error
         }
+        HasCs2PathStatus = true;
     }
 
     public Action? OnSaved { get; set; }
@@ -115,6 +158,7 @@ public partial class SettingsViewModel : ViewModelBase
         _settings.PriceRetryDelaySeconds = PriceRetryDelaySeconds;
         _settings.Theme = (AppTheme)SelectedThemeIndex;
         _settings.EnableIconCache = EnableIconCache;
+        _settings.ShowUpdateButton = ShowUpdateButton;
         _settings.OpenLinkIn = (OpenLinkIn)SelectedOpenLinkInIndex;
         _settings.Cs2GamePath = Cs2GamePath;
         await _settings.SaveAsync();

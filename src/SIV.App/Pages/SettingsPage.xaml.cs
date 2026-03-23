@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using SIV.Domain.Enums;
 using SIV.UI.ViewModels;
+using System.Diagnostics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -45,10 +46,41 @@ public sealed partial class SettingsPage : Page
         {
             App.ApplyTheme((AppTheme)ViewModel.SelectedThemeIndex);
         }
+        else if (e.PropertyName == nameof(SettingsViewModel.Cs2PathSeverity))
+        {
+            Cs2PathInfoBar.Severity = ViewModel.Cs2PathSeverity switch
+            {
+                1 => InfoBarSeverity.Success,
+                2 => InfoBarSeverity.Warning,
+                3 => InfoBarSeverity.Error,
+                _ => InfoBarSeverity.Informational
+            };
+        }
+        else if (e.PropertyName == nameof(SettingsViewModel.UpdateInfoSeverity))
+        {
+            UpdateInfoBar.Severity = ViewModel.UpdateInfoSeverity == 1
+                ? InfoBarSeverity.Success
+                : InfoBarSeverity.Informational;
+        }
+    }
+
+    private void SettingsNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
+        {
+            GeneralSection.Visibility = tag == "General" ? Visibility.Visible : Visibility.Collapsed;
+            PricingSection.Visibility = tag == "Pricing" ? Visibility.Visible : Visibility.Collapsed;
+            GameSection.Visibility = tag == "Game" ? Visibility.Visible : Visibility.Collapsed;
+            AboutSection.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
+            ActionBar.Visibility = tag == "About" ? Visibility.Collapsed : Visibility.Visible;
+        }
     }
 
     private async void ShowPostSaveDialog()
     {
+        if (App.MainWindow is MainWindow mw)
+            mw.UpdateToolbar();
+
         var dialog = new ContentDialog
         {
             Title = "Settings saved",
@@ -81,5 +113,20 @@ public sealed partial class SettingsPage : Page
         {
             ViewModel.Cs2GamePath = folder.Path;
         }
+    }
+
+    private void OpenGitHub_Click(object sender, RoutedEventArgs e)
+    {
+        var url = ViewModel?.GitHubUrl;
+        if (!string.IsNullOrEmpty(url))
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
+    private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var appDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SIV");
+        if (Directory.Exists(appDataPath))
+            Process.Start(new ProcessStartInfo(appDataPath) { UseShellExecute = true });
     }
 }

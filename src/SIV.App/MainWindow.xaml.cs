@@ -1,6 +1,8 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using SIV.App.Pages;
+using SIV.Application.Interfaces;
 using SIV.UI.ViewModels;
 
 namespace SIV.App;
@@ -40,7 +42,10 @@ public sealed partial class MainWindow : Window
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.CurrentView))
+            {
                 NavigateToView(_viewModel.CurrentView);
+                UpdateToolbar();
+            }
             else if (e.PropertyName is nameof(MainViewModel.IsLoggedIn)
                      or nameof(MainViewModel.PlayerName)
                      or nameof(MainViewModel.PlayerAvatarUrl)
@@ -74,7 +79,7 @@ public sealed partial class MainWindow : Window
             ContentFrame.Navigate(pageType, vm);
     }
 
-    private void UpdateToolbar()
+    public void UpdateToolbar()
     {
         DispatcherQueue.TryEnqueue(() =>
         {
@@ -86,7 +91,8 @@ public sealed partial class MainWindow : Window
             VersionText.Text = string.IsNullOrEmpty(current) ? "" : $"v{current}";
 
             var updateAvailable = _viewModel?.UpdateAvailable ?? false;
-            UpdateButton.Visibility = updateAvailable ? Visibility.Visible : Visibility.Collapsed;
+            var showUpdateButton = App.Services.GetRequiredService<ISettingsService>().ShowUpdateButton;
+            UpdateButton.Visibility = (updateAvailable && showUpdateButton) ? Visibility.Visible : Visibility.Collapsed;
             if (updateAvailable)
                 UpdateButtonText.Text = $"Update to v{_viewModel?.UpdateVersion}";
 

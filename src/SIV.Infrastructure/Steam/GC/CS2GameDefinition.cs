@@ -8,5 +8,5 @@ public sealed class CS2GameDefinition : IGameDefinition
 
     public uint AppId => CS2AppId;
     public string Name => "Counter-Strike 2";
-    public string IconPath => "ms-appx:///Assets/cs2.png";
+    public string IconPath => "ms-appx:///Assets/games/cs2/cs2_main_icon.jpg";
 }

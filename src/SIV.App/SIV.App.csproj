@@ -39,6 +39,12 @@
   <ItemGroup>
     <Content Include="..\..\dump\cs2\items_game.txt" Link="dump\cs2\items_game.txt"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\games\cs2\cs2_main_icon.jpg" Link="Assets\games\cs2\cs2_main_icon.jpg"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\app\siv_icon.ico" Link="Assets\app\siv_icon.ico"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\app\siv_icon.png" Link="Assets\app\siv_icon.png"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="CopyAppPriToPublish" AfterTargets="Publish"

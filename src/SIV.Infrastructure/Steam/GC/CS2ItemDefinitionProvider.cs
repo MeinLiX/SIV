@@ -130,6 +130,12 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         [1201] = "Storage Unit",
     };
 
+    // Temp fix
+    private static readonly Dictionary<uint, string> FallbackIcons = new()
+    {
+        [1201] = "i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJG51EejH_XV0MGkITXE5AB094KtuwG0Exv1yMfkqXcCtvT_MPw5JPTKV2bDk7Z3sudtHSjr2w0ptCMWPT2u",
+    };
+
     private static readonly Dictionary<uint, string> WeaponEntityNames = new()
     {
         [1] = "weapon_deagle",
@@ -193,9 +199,9 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
 
     private Lazy<Dictionary<string, List<ItemOriginInfo>>> _originMap;
 
-    public CS2ItemDefinitionProvider(ILogger<CS2ItemDefinitionProvider> logger, ISettingsService settings)
+    public CS2ItemDefinitionProvider(ILogger<CS2ItemDefinitionProvider> logger)
     {
-        _schema = new Lazy<CS2ItemsGameSchema>(() => LoadSchema(logger, settings.Cs2GamePath), LazyThreadSafetyMode.ExecutionAndPublication);
+        _schema = new Lazy<CS2ItemsGameSchema>(() => LoadSchema(logger), LazyThreadSafetyMode.ExecutionAndPublication);
         _originMap = new Lazy<Dictionary<string, List<ItemOriginInfo>>>(() => BuildOriginMap(_schema.Value), LazyThreadSafetyMode.ExecutionAndPublication);
         _containerDropMap = new Lazy<Dictionary<int, IReadOnlyList<ContainerDropInfo>>>(() => BuildContainerDropMap(_schema.Value), LazyThreadSafetyMode.ExecutionAndPublication);
     }
@@ -227,8 +233,8 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
         if (!string.IsNullOrEmpty(itemName) && itemName != mhn && _iconHashCache.TryGetValue(itemName, out var nameHash))
             return nameHash;
 
-        if (_schema.Value.ItemImagePaths.TryGetValue((int)defIndex, out var path) && !IsVpkPath(path))
-            return path;
+        if (FallbackIcons.TryGetValue(defIndex, out var fallback))
+            return fallback;
 
         return null;
     }
@@ -449,13 +455,6 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
 
         return _iconHashCache.GetValueOrDefault(marketHashName);
     }
-
-    private static bool IsVpkPath(string value) =>
-        value.StartsWith("econ/", StringComparison.OrdinalIgnoreCase)
-        || (!value.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            && value.Contains('/')
-            && (value.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                || value.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)));
 
     private static bool IsKnife(uint defIndex) =>
         defIndex is 42 or 59 or (>= 500 and <= 526);
@@ -769,7 +768,7 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
     private static bool IsUnusualLootList(string listName)
         => listName.EndsWith("_unusual", StringComparison.OrdinalIgnoreCase);
 
-    private static CS2ItemsGameSchema LoadSchema(ILogger<CS2ItemDefinitionProvider> logger, string? cs2GamePath)
+    private static CS2ItemsGameSchema LoadSchema(ILogger<CS2ItemDefinitionProvider> logger)
     {
         var path = ResolveItemsGamePath();
         if (path is null)
@@ -780,14 +779,7 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
 
         logger.LogInformation("Loading CS2 schema from {Path}", path);
 
-        var resolvedCs2Path = !string.IsNullOrWhiteSpace(cs2GamePath) && Directory.Exists(cs2GamePath)
-            ? cs2GamePath
-            : null;
-
-        if (resolvedCs2Path is not null)
-            logger.LogInformation("Using CS2 game path for localization: {Cs2Path}", resolvedCs2Path);
-
-        return CS2ItemsGameSchema.Load(path, resolvedCs2Path);
+        return CS2ItemsGameSchema.Load(path);
     }
 
     private static string? ResolveItemsGamePath()

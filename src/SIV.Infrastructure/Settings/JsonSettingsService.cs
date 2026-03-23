@@ -15,7 +15,6 @@ public sealed class JsonSettingsService : ISettingsService
     public int PriceRetryDelaySeconds { get; set; } = 10;
     public AppTheme Theme { get; set; } = AppTheme.Dark;
     public bool EnableIconCache { get; set; } = true;
-    public string Cs2GamePath { get; set; } = string.Empty;
     public string UpdateRepoUrl { get; set; } = "https://github.com/MeinLiX/SIV";
     public OpenLinkIn OpenLinkIn { get; set; } = OpenLinkIn.Browser;
     public bool ShowUpdateButton { get; set; } = true;
@@ -44,7 +43,6 @@ public sealed class JsonSettingsService : ISettingsService
             PriceRetryDelaySeconds = PriceRetryDelaySeconds,
             Theme = Theme,
             EnableIconCache = EnableIconCache,
-            Cs2GamePath = Cs2GamePath,
             UpdateRepoUrl = UpdateRepoUrl,
             OpenLinkIn = OpenLinkIn,
             ShowUpdateButton = ShowUpdateButton
@@ -67,7 +65,6 @@ public sealed class JsonSettingsService : ISettingsService
         PriceRetryDelaySeconds = data.PriceRetryDelaySeconds;
         Theme = data.Theme;
         EnableIconCache = data.EnableIconCache;
-        Cs2GamePath = data.Cs2GamePath;
         UpdateRepoUrl = data.UpdateRepoUrl;
         OpenLinkIn = data.OpenLinkIn;
         ShowUpdateButton = data.ShowUpdateButton;
@@ -81,7 +78,6 @@ public sealed class JsonSettingsService : ISettingsService
         public int PriceRetryDelaySeconds { get; set; } = 10;
         public AppTheme Theme { get; set; } = AppTheme.Dark;
         public bool EnableIconCache { get; set; } = true;
-        public string Cs2GamePath { get; set; } = string.Empty;
         public string UpdateRepoUrl { get; set; } = "https://github.com/MeinLiX/SIV";
         public OpenLinkIn OpenLinkIn { get; set; } = OpenLinkIn.Browser;
         public bool ShowUpdateButton { get; set; } = true;

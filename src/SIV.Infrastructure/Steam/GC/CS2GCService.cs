@@ -707,7 +707,7 @@ public sealed class CS2GCService : IGCService
                 "Enriched {Icons} icons and {Flags}/{Total} tradable/marketable flags from Steam web API ({Unmatched} unmatched)",
                 enrichedIcons, enrichedFlags, items.Count, unmatchedCount);
 
-            var unmatched = items.Where(i => string.IsNullOrEmpty(i.IconUrl) || IsLikelyVpkPath(i.IconUrl)).ToList();
+            var unmatched = items.Where(i => string.IsNullOrEmpty(i.IconUrl)).ToList();
             if (unmatched.Count > 0)
             {
                 _logger.LogDebug("Items with no icon after web API enrichment: {Items}",
@@ -756,7 +756,7 @@ public sealed class CS2GCService : IGCService
         if (enriched > 0 || defaulted > 0)
             _logger.LogInformation("Enriched {Enriched} casket items from cached web API data, {Defaulted} defaulted to price-fetchable by market hash", enriched, defaulted);
 
-        var unmatched = items.Where(i => string.IsNullOrEmpty(i.IconUrl) || IsLikelyVpkPath(i.IconUrl)).ToList();
+        var unmatched = items.Where(i => string.IsNullOrEmpty(i.IconUrl)).ToList();
         if (unmatched.Count > 0)
             await FetchMissingIconsFromMarketAsync(unmatched);
     }
@@ -1031,7 +1031,7 @@ public sealed class CS2GCService : IGCService
 
         foreach (var item in items)
         {
-            if ((!string.IsNullOrEmpty(item.IconUrl) && !IsLikelyVpkPath(item.IconUrl))
+            if (!string.IsNullOrEmpty(item.IconUrl)
                 || string.IsNullOrWhiteSpace(item.MarketHashName))
                 continue;
 
@@ -1043,7 +1043,7 @@ public sealed class CS2GCService : IGCService
                 item.IconUrl = resolved;
         }
 
-        var stillMissing = items.Where(i => string.IsNullOrEmpty(i.IconUrl) || IsLikelyVpkPath(i.IconUrl)).ToList();
+        var stillMissing = items.Where(i => string.IsNullOrEmpty(i.IconUrl)).ToList();
         if (stillMissing.Count > 0)
             _logger.LogWarning("Items still without icon after market fallback: {Items}",
                 string.Join(", ", stillMissing.Select(i => $"{i.Name} (MHN={i.MarketHashName})")));
@@ -1054,13 +1054,13 @@ public sealed class CS2GCService : IGCService
         var iconByDefIndex = new Dictionary<uint, string>();
         foreach (var item in items)
         {
-            if (!string.IsNullOrEmpty(item.IconUrl) && !IsLikelyVpkPath(item.IconUrl))
+            if (!string.IsNullOrEmpty(item.IconUrl))
                 iconByDefIndex.TryAdd(item.DefIndex, item.IconUrl);
         }
 
         foreach (var item in items)
         {
-            if ((string.IsNullOrEmpty(item.IconUrl) || IsLikelyVpkPath(item.IconUrl))
+            if (string.IsNullOrEmpty(item.IconUrl)
                 && iconByDefIndex.TryGetValue(item.DefIndex, out var sharedIcon))
             {
                 item.IconUrl = sharedIcon;
@@ -1569,13 +1569,6 @@ public sealed class CS2GCService : IGCService
         IsStickerTypeItem(defIndex)
         || paintIndex > 0
         || defIndex is (>= 1 and <= 64) or (>= 500 and <= 526);
-
-    private static bool IsLikelyVpkPath(string url) =>
-        url.StartsWith("econ/", StringComparison.OrdinalIgnoreCase)
-        || (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            && url.Contains('/')
-            && (url.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                || url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)));
 
     private static readonly Regex StickerImgRegex = new(
         """src="(?<url>https?://[^"]+)"\s*title="(?:Souvenir\s+)?(?<type>Sticker|Charm|Patch):\s*(?<name>[^"]+)""",

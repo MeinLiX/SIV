@@ -13,7 +13,7 @@ public static partial class SteamIconUrl
 
         var trimmed = value.Trim();
 
-        if (IsVpkPath(trimmed))
+        if (trimmed.StartsWith("econ/", StringComparison.OrdinalIgnoreCase))
             return string.Empty;
 
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri))
@@ -34,13 +34,6 @@ public static partial class SteamIconUrl
 
         return $"{absolute}/{size}";
     }
-
-    private static bool IsVpkPath(string value) =>
-        !value.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-        && value.Contains('/', StringComparison.Ordinal)
-        && (value.StartsWith("econ/", StringComparison.OrdinalIgnoreCase)
-            || value.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-            || value.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase));
 
     [GeneratedRegex(@"/\d+fx?\d*x\d+f?/?$", RegexOptions.IgnoreCase)]
     private static partial Regex SteamImageSizeRegex();

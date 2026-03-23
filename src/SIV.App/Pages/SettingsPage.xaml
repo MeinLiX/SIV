@@ -41,11 +41,6 @@
                         <FontIcon Glyph="&#xE8EC;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Game" Tag="Game">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7FC;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>
@@ -161,27 +156,6 @@
                                 <NumberBox Value="{x:Bind ViewModel.PriceRetryDelaySeconds, Mode=TwoWay}"
                                            Minimum="1" Maximum="120" SpinButtonPlacementMode="Compact" />
                             </controls:SettingsCard>
-                        </StackPanel>
-
-                        <StackPanel x:Name="GameSection" Spacing="4" Visibility="Collapsed">
-                            <TextBlock Text="Game" Style="{StaticResource SubtitleTextBlockStyle}" Margin="1,8,0,16" />
-
-                            <controls:SettingsCard Header="CS2 Game Path"
-                                                   Description="Path to CS2 install folder for skin names and icons">
-                                <controls:SettingsCard.HeaderIcon>
-                                    <FontIcon Glyph="&#xE838;" />
-                                </controls:SettingsCard.HeaderIcon>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox Text="{x:Bind ViewModel.Cs2GamePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="300" PlaceholderText="C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive" />
-                                    <Button Content="Browse..." Click="BrowseCs2Path_Click" />
-                                </StackPanel>
-                            </controls:SettingsCard>
-                            <InfoBar x:Name="Cs2PathInfoBar"
-                                     IsOpen="{x:Bind ViewModel.HasCs2PathStatus, Mode=OneWay}"
-                                     IsClosable="False"
-                                     Message="{x:Bind ViewModel.Cs2PathStatus, Mode=OneWay}"
-                                     Margin="0,4,0,0" />
                         </StackPanel>
 
                         <StackPanel x:Name="AboutSection" Spacing="4" Visibility="Collapsed">

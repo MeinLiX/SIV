@@ -27,6 +27,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             Title = "SIV — Steam Inventory Viewer"
         };
 
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app", "siv_icon.ico");
+        if (File.Exists(iconPath))
+            MainWindow.AppWindow.SetIcon(iconPath);
+
         ApplyTheme(Services.GetRequiredService<ISettingsService>().Theme);
 
         var mainVm = Services.GetRequiredService<MainViewModel>();

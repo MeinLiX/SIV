@@ -40,18 +40,6 @@ public partial class SettingsViewModel : ViewModelBase
     private string _updateStatusText = "Checking...";
 
     [ObservableProperty]
-    private string _cs2GamePath = string.Empty;
-
-    [ObservableProperty]
-    private string _cs2PathStatus = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasCs2PathStatus;
-
-    [ObservableProperty]
-    private int _cs2PathSeverity;
-
-    [ObservableProperty]
     private bool _hasChanges;
 
     public string CurrentVersion { get; } = Assembly.GetEntryAssembly()
@@ -96,8 +84,6 @@ public partial class SettingsViewModel : ViewModelBase
         EnableIconCache = _settings.EnableIconCache;
         ShowUpdateButton = _settings.ShowUpdateButton;
         SelectedOpenLinkInIndex = (int)_settings.OpenLinkIn;
-        Cs2GamePath = _settings.Cs2GamePath;
-        ValidateCs2Path();
         HasChanges = false;
     }
 
@@ -109,43 +95,6 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnEnableIconCacheChanged(bool value) => HasChanges = true;
     partial void OnShowUpdateButtonChanged(bool value) => HasChanges = true;
     partial void OnSelectedOpenLinkInIndexChanged(int value) => HasChanges = true;
-    partial void OnCs2GamePathChanged(string value)
-    {
-        HasChanges = true;
-        ValidateCs2Path();
-    }
-
-    private void ValidateCs2Path()
-    {
-        if (string.IsNullOrWhiteSpace(Cs2GamePath))
-        {
-            Cs2PathStatus = string.Empty;
-            HasCs2PathStatus = false;
-            return;
-        }
-
-        var csgoDir = Path.Combine(Cs2GamePath, "game", "csgo");
-        if (Directory.Exists(csgoDir))
-        {
-            var locFile = Path.Combine(csgoDir, "resource", "csgo_english.txt");
-            if (File.Exists(locFile))
-            {
-                Cs2PathStatus = "Valid CS2 path (localization found)";
-                Cs2PathSeverity = 1; // Success
-            }
-            else
-            {
-                Cs2PathStatus = "Valid CS2 path (localization file not found)";
-                Cs2PathSeverity = 2; // Warning
-            }
-        }
-        else
-        {
-            Cs2PathStatus = "Invalid: 'game/csgo' directory not found";
-            Cs2PathSeverity = 3; // Error
-        }
-        HasCs2PathStatus = true;
-    }
 
     public Action? OnSaved { get; set; }
 
@@ -160,7 +109,6 @@ public partial class SettingsViewModel : ViewModelBase
         _settings.EnableIconCache = EnableIconCache;
         _settings.ShowUpdateButton = ShowUpdateButton;
         _settings.OpenLinkIn = (OpenLinkIn)SelectedOpenLinkInIndex;
-        _settings.Cs2GamePath = Cs2GamePath;
         await _settings.SaveAsync();
         HasChanges = false;
         StatusText = "Settings saved";

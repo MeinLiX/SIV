@@ -4,8 +4,6 @@ using Microsoft.UI.Xaml.Navigation;
 using SIV.Domain.Enums;
 using SIV.UI.ViewModels;
 using System.Diagnostics;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace SIV.App.Pages;
 
@@ -46,16 +44,6 @@ public sealed partial class SettingsPage : Page
         {
             App.ApplyTheme((AppTheme)ViewModel.SelectedThemeIndex);
         }
-        else if (e.PropertyName == nameof(SettingsViewModel.Cs2PathSeverity))
-        {
-            Cs2PathInfoBar.Severity = ViewModel.Cs2PathSeverity switch
-            {
-                1 => InfoBarSeverity.Success,
-                2 => InfoBarSeverity.Warning,
-                3 => InfoBarSeverity.Error,
-                _ => InfoBarSeverity.Informational
-            };
-        }
         else if (e.PropertyName == nameof(SettingsViewModel.UpdateInfoSeverity))
         {
             UpdateInfoBar.Severity = ViewModel.UpdateInfoSeverity == 1
@@ -70,7 +58,6 @@ public sealed partial class SettingsPage : Page
         {
             GeneralSection.Visibility = tag == "General" ? Visibility.Visible : Visibility.Collapsed;
             PricingSection.Visibility = tag == "Pricing" ? Visibility.Visible : Visibility.Collapsed;
-            GameSection.Visibility = tag == "Game" ? Visibility.Visible : Visibility.Collapsed;
             AboutSection.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
             ActionBar.Visibility = tag == "About" ? Visibility.Collapsed : Visibility.Visible;
         }
@@ -95,23 +82,6 @@ public sealed partial class SettingsPage : Page
         if (result == ContentDialogResult.Primary)
         {
             ViewModel.GoBackCommand.Execute(null);
-        }
-    }
-
-    private async void BrowseCs2Path_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new FolderPicker();
-        picker.SuggestedStartLocation = PickerLocationId.ComputerFolder;
-        picker.FileTypeFilter.Add("*");
-
-        var window = App.MainWindow;
-        var hwnd = WindowNative.GetWindowHandle(window);
-        InitializeWithWindow.Initialize(picker, hwnd);
-
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is not null)
-        {
-            ViewModel.Cs2GamePath = folder.Path;
         }
     }
 

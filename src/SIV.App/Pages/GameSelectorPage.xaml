@@ -22,14 +22,17 @@
                         <Grid Padding="12,8" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{x:Bind Name}" FontSize="16" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Opacity="0.6">
+                            <Image Grid.Column="0" Source="{x:Bind IconPath}" Width="32" Height="32"
+                                   VerticalAlignment="Center" Stretch="UniformToFill" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="16" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Opacity="0.6">
                                 <Run Text="AppID: " /><Run Text="{x:Bind AppId}" />
                             </TextBlock>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                 <ProgressRing IsActive="{x:Bind IsLoadingCount, Mode=OneWay}" Width="16" Height="16"
                                               Visibility="{x:Bind IsLoadingCount, Mode=OneWay}" Margin="0,0,6,0" />
                                 <TextBlock VerticalAlignment="Center" Opacity="0.7" FontSize="13"

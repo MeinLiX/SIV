@@ -32,7 +32,7 @@ internal sealed class CS2ItemsGameSchema
 
     private static readonly Regex QuotedTokenRegex = new("\"([^\"]*)\"", RegexOptions.Compiled);
 
-    public static CS2ItemsGameSchema Load(string path, string? cs2GamePath = null)
+    public static CS2ItemsGameSchema Load(string path)
     {
         var schema = new CS2ItemsGameSchema();
         using var reader = File.OpenText(path);
@@ -191,7 +191,7 @@ internal sealed class CS2ItemsGameSchema
         ParseQualityColors(path, schema);
         ParseOriginData(path, schema);
 
-        var localization = LoadLocalization(cs2GamePath);
+        var localization = LoadLocalization();
         if (localization.Count > 0)
         {
             ApplyLocalization(schema, localization);
@@ -433,14 +433,11 @@ internal sealed class CS2ItemsGameSchema
         }
     }
 
-    private static Dictionary<string, string> LoadLocalization(string? cs2GamePath)
+    private static Dictionary<string, string> LoadLocalization()
     {
         var localization = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        var locPath = ResolveLocalFile(cs2GamePath, "csgo_english.txt",
-            ["game/csgo/resource", "csgo/resource", "resource"]);
-
-        locPath ??= DownloadAndCache("csgo_english.txt",
+        var locPath = DownloadAndCache("csgo_english.txt",
             "https://raw.githubusercontent.com/SteamDatabase/GameTracking-CS2/refs/heads/master/game/csgo/pak01_dir/resource/csgo_english.txt");
 
         if (locPath is null)
@@ -609,21 +606,6 @@ internal sealed class CS2ItemsGameSchema
             "elite" => "Dual Berettas",
             _ => char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant()
         };
-    }
-
-    private static string? ResolveLocalFile(string? basePath, string fileName, string[] subPaths)
-    {
-        if (string.IsNullOrWhiteSpace(basePath))
-            return null;
-
-        foreach (var sub in subPaths)
-        {
-            var candidate = Path.Combine(basePath, sub.Replace('/', Path.DirectorySeparatorChar), fileName);
-            if (File.Exists(candidate))
-                return candidate;
-        }
-
-        return null;
     }
 
     private static readonly string CacheDir =

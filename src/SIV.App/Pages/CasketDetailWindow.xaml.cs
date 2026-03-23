@@ -26,6 +26,12 @@ public sealed partial class CasketDetailWindow : Window
         NativeWindowMethods.SetWindowSize(this, 960, 720);
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 
+        if (Content is FrameworkElement root)
+        {
+            root.RequestedTheme = App.CurrentTheme;
+            App.ThemeChanged += theme => root.RequestedTheme = theme;
+        }
+
         OpenWindows.Add(this);
         Closed += CasketDetailWindow_Closed;
         ContentFrame.Navigate(typeof(CasketContentPage), viewModel);

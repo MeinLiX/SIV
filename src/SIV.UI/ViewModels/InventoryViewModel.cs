@@ -349,6 +349,17 @@ public partial class InventoryViewModel : ViewModelBase
     [RelayCommand]
     private void ToggleSortDirection() => Sort.ToggleDirection();
 
+    [RelayCommand]
+    private void OpenPreview()
+    {
+        var provider = _gcFactory.GetItemDefinitionProvider(_appId);
+        if (provider is null)
+            return;
+
+        var vm = new PreviewViewModel(provider, _gcFactory, _appId, _navigation);
+        _navigation.NavigateTo(vm);
+    }
+
     partial void OnSearchTextChanged(string value) => ApplyFilter();
     partial void OnIsGroupedChanged(bool value) => ApplyFilter();
     partial void OnHideNonMarketableChanged(bool value) => ApplyFilter();

@@ -18,8 +18,9 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        NativeWindowMethods.ConfigurePresenter(this);
+        NativeWindowMethods.ConfigurePresenter(this, maximizable: true);
         NativeWindowMethods.SetWindowSize(this, 1100, 750);
+        NativeWindowMethods.SetMinWindowSize(this, 900, 600);
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 
         Closed += MainWindow_Closed;
@@ -71,6 +72,7 @@ public sealed partial class MainWindow : Window
             InventoryViewModel => typeof(InventoryPage),
             CasketDetailViewModel => typeof(CasketDetailPage),
             InventoryGroupDetailViewModel => typeof(InventoryGroupDetailPage),
+            PreviewViewModel => typeof(PreviewPage),
             SettingsViewModel => typeof(SettingsPage),
             _ => null
         };

@@ -459,6 +459,33 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
     private static bool IsKnife(uint defIndex) =>
         defIndex is 42 or 59 or (>= 500 and <= 526);
 
+    /// <summary>
+    /// Per-knife paint kit indices (sourced from @ianlucas/cs2-lib).
+    /// </summary>
+    private static readonly Dictionary<uint, int[]> KnifePaintKitsByDef = new()
+    {
+        [500] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 558, 563, 568, 569, 570, 571, 572, 573, 578, 580],
+        [503] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 143, 175, 735],
+        [505] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 559, 564, 568, 569, 570, 571, 572, 574, 578, 580],
+        [506] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 560, 565, 568, 569, 570, 571, 572, 575, 578, 580],
+        [507] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 561, 566, 568, 569, 570, 571, 572, 576, 578, 582],
+        [508] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 411, 413, 414, 415, 416, 417, 418, 419, 420, 421, 562, 567, 568, 569, 570, 571, 572, 577, 579, 581],
+        [509] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 143, 175, 409, 411, 413, 414, 415, 416, 417, 418, 419, 420, 421, 568, 569, 570, 571, 572, 579, 581, 620, 1107, 1112, 1117],
+        [512] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 143, 175, 409, 411, 413, 414, 415, 416, 417, 418, 419, 420, 421, 568, 569, 570, 571, 572, 579, 581, 621, 1106, 1111, 1116],
+        [514] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 411, 413, 414, 415, 416, 417, 418, 419, 420, 421, 568, 569, 570, 571, 572, 579, 581, 1104, 1109, 1114],
+        [515] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 411, 413, 414, 415, 418, 420, 421, 568, 569, 570, 571, 572, 579, 581, 617, 618, 619, 1105, 1110, 1115],
+        [516] = [5, 12, 38, 40, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 411, 413, 414, 415, 418, 420, 421, 568, 569, 570, 571, 572, 579, 581, 617, 618, 619, 1108, 1113, 1118],
+        [517] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 621, 735],
+        [518] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 735],
+        [519] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 413, 414, 415, 416, 417, 418, 419, 420, 421, 735, 857],
+        [520] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 413, 414, 415, 416, 417, 418, 419, 420, 421, 735, 857],
+        [521] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 735],
+        [522] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 413, 414, 415, 416, 417, 418, 419, 420, 421, 735, 857],
+        [523] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 414, 415, 416, 417, 735, 852, 853, 854, 855, 856, 858],
+        [525] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 98, 143, 175, 409, 410, 413, 414, 415, 416, 417, 418, 419, 420, 421, 735],
+        [526] = [5, 12, 38, 42, 43, 44, 59, 72, 77, 143, 175, 735],
+    };
+
     private static string GetExteriorString(float wear) => wear switch
     {
         <= 0.07f => "Factory New",
@@ -767,6 +794,110 @@ public sealed class CS2ItemDefinitionProvider : IItemDefinitionProvider
 
     private static bool IsUnusualLootList(string listName)
         => listName.EndsWith("_unusual", StringComparison.OrdinalIgnoreCase);
+
+    // Weapons that can have paint kits applied (exclude grenades, zeus, C4, etc.)
+    private static readonly HashSet<uint> SkinnableDefIndices =
+    [
+        1, 2, 3, 4, 7, 8, 9, 10, 11, 13, 14, 16, 17, 19, 23, 24, 25, 26, 27, 28, 29, 30,
+        32, 33, 34, 35, 36, 38, 39, 40, 60, 61, 63, 64,
+        500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 525, 526
+    ];
+
+    public IReadOnlyList<WeaponInfo> GetSkinnableWeapons()
+    {
+        return SkinnableDefIndices
+            .Where(WeaponNames.ContainsKey)
+            .Select(d => new WeaponInfo(d, WeaponNames[d]))
+            .OrderBy(w => w.Name)
+            .ToList();
+    }
+
+    public IReadOnlyList<PaintKitInfo> GetPaintKitsForWeapon(uint defIndex)
+    {
+        if (!WeaponEntityNames.TryGetValue(defIndex, out var entityName))
+            return [];
+
+        var schema = _schema.Value;
+        var result = new List<PaintKitInfo>();
+        var seenPaintIds = new HashSet<int>();
+
+        if (IsKnife(defIndex) && KnifePaintKitsByDef.TryGetValue(defIndex, out var knifePaintKits))
+        {
+            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var paintId in knifePaintKits)
+            {
+                if (schema.PaintKits.TryGetValue(paintId, out var name)
+                    && !string.IsNullOrWhiteSpace(name)
+                    && seenNames.Add(name))
+                    result.Add(new PaintKitInfo(paintId, name));
+            }
+
+            return result.OrderBy(p => p.Name).ToList();
+        }
+
+        var paintIdsByInternalName = schema.PaintKitInternalNames
+            .ToDictionary(static kvp => kvp.Value, static kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, entries) in schema.ClientLootLists)
+        {
+            foreach (var entry in entries)
+            {
+                if (!entry.StartsWith('['))
+                    continue;
+
+                var sep = entry.IndexOf(']');
+                if (sep <= 1 || sep >= entry.Length - 1)
+                    continue;
+
+                var internalName = entry[1..sep];
+                var entryEntityName = entry[(sep + 1)..];
+
+                if (!string.Equals(entryEntityName, entityName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!paintIdsByInternalName.TryGetValue(internalName, out var paintId))
+                    continue;
+
+                if (!seenPaintIds.Add(paintId))
+                    continue;
+
+                var paintName = GetPaintKitName(paintId);
+                if (!string.IsNullOrWhiteSpace(paintName))
+                    result.Add(new PaintKitInfo(paintId, paintName));
+            }
+        }
+
+        foreach (var (_, setEntry) in schema.ItemSets)
+        {
+            foreach (var skinKey in setEntry.SkinKeys)
+            {
+                if (!skinKey.StartsWith('['))
+                    continue;
+
+                var sep = skinKey.IndexOf(']');
+                if (sep <= 1 || sep >= skinKey.Length - 1)
+                    continue;
+
+                var internalName = skinKey[1..sep];
+                var setEntityName = skinKey[(sep + 1)..];
+
+                if (!string.Equals(setEntityName, entityName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!paintIdsByInternalName.TryGetValue(internalName, out var paintId))
+                    continue;
+
+                if (!seenPaintIds.Add(paintId))
+                    continue;
+
+                var paintName = GetPaintKitName(paintId);
+                if (!string.IsNullOrWhiteSpace(paintName))
+                    result.Add(new PaintKitInfo(paintId, paintName));
+            }
+        }
+
+        return result.OrderBy(p => p.Name).ToList();
+    }
 
     private static CS2ItemsGameSchema LoadSchema(ILogger<CS2ItemDefinitionProvider> logger)
     {

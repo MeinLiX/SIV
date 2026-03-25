@@ -294,6 +294,10 @@
             <AppBarToggleButton Label="Hide Non-Marketable" Icon="Filter"
                                 IsChecked="{x:Bind ViewModel.HideNonMarketable, Mode=TwoWay}"
                                 Visibility="{x:Bind ViewModel.HasLoadedOnce, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+            <AppBarSeparator Visibility="{x:Bind ViewModel.HasLoadedOnce, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
+            <AppBarButton Label="Preview" Icon="View"
+                          Command="{x:Bind ViewModel.OpenPreviewCommand}"
+                          Visibility="{x:Bind ViewModel.HasLoadedOnce, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
         </CommandBar>
 
         <Grid Grid.Row="1" Margin="16,8,16,4" ColumnSpacing="12"

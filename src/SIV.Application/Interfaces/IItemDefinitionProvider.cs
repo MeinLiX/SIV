@@ -18,6 +18,8 @@ public interface IItemDefinitionProvider
     string? GetKeychainIconUrl(int keychainId);
     IReadOnlyList<ItemOriginInfo> GetItemOrigins(int paintIndex, uint defIndex, int stickerKitId = 0);
     IReadOnlyList<ContainerDropInfo> GetContainerDrops(uint defIndex);
+    IReadOnlyList<WeaponInfo> GetSkinnableWeapons();
+    IReadOnlyList<PaintKitInfo> GetPaintKitsForWeapon(uint defIndex);
     void PopulateIconCache(IReadOnlyDictionary<string, string> iconsByMarketHashName);
     string? ResolveIconHash(string marketHashName);
 }

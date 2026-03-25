@@ -24,6 +24,7 @@ public sealed partial class CasketDetailWindow : Window
 
         NativeWindowMethods.ConfigurePresenter(this);
         NativeWindowMethods.SetWindowSize(this, 960, 720);
+        NativeWindowMethods.SetMinWindowSize(this, 700, 500);
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 
         if (Content is FrameworkElement root)
